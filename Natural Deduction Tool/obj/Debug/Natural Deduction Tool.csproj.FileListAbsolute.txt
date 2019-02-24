@@ -1,0 +1,10 @@
+C:\Users\Christiaan\source\repos\Natural Deduction Tool\Natural Deduction Tool\bin\Debug\Natural Deduction Tool.exe.config
+C:\Users\Christiaan\source\repos\Natural Deduction Tool\Natural Deduction Tool\bin\Debug\Natural Deduction Tool.exe
+C:\Users\Christiaan\source\repos\Natural Deduction Tool\Natural Deduction Tool\bin\Debug\Natural Deduction Tool.pdb
+C:\Users\Christiaan\source\repos\Natural Deduction Tool\Natural Deduction Tool\obj\Debug\Natural Deduction Tool.csprojResolveAssemblyReference.cache
+C:\Users\Christiaan\source\repos\Natural Deduction Tool\Natural Deduction Tool\obj\Debug\Natural_Deduction_Tool.Properties.Resources.resources
+C:\Users\Christiaan\source\repos\Natural Deduction Tool\Natural Deduction Tool\obj\Debug\Natural Deduction Tool.csproj.GenerateResource.Cache
+C:\Users\Christiaan\source\repos\Natural Deduction Tool\Natural Deduction Tool\obj\Debug\Natural Deduction Tool.csproj.CoreCompileInputs.cache
+C:\Users\Christiaan\source\repos\Natural Deduction Tool\Natural Deduction Tool\obj\Debug\Natural Deduction Tool.exe
+C:\Users\Christiaan\source\repos\Natural Deduction Tool\Natural Deduction Tool\obj\Debug\Natural Deduction Tool.pdb
+C:\Users\Christiaan\source\repos\Natural Deduction Tool\Natural Deduction Tool\obj\Debug\Natural_Deduction_Tool.Form1.resources
