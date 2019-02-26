@@ -40,7 +40,7 @@ namespace Natural_Deduction_Tool
         {
             IFormula i = ParseIff();
             SkipSpaces();
-            if (cursor > length)
+            if (cursor < length)
                 throw new Exception($"Extra input on position {cursor} ({content[cursor]})");
             return i;
         }

@@ -9,7 +9,7 @@ namespace Natural_Deduction_Tool
     public interface IFormula
     {
         string ToString();
-        bool Equals(IFormula form);
+        bool Equals(object e);
     }
 
     class PropVar : IFormula
@@ -21,14 +21,21 @@ namespace Natural_Deduction_Tool
             name = n;
         }
 
-        public bool Equals(IFormula form)
+        public override bool Equals(object obj)
         {
-            if (form is PropVar)
+            if ((obj == null) || !GetType().Equals(obj.GetType()))
             {
-                PropVar vari = form as PropVar;
-                return vari.name == name;
+                return false;
             }
-            return false;
+            else
+            {
+                return ToString() == ((PropVar)obj).ToString();
+            }
+        }
+
+        public override int GetHashCode()
+        {
+            return name.GetHashCode();
         }
 
         public override string ToString()
@@ -40,20 +47,28 @@ namespace Natural_Deduction_Tool
     class Negation : IFormula
     {
         IFormula formula;
+        public IFormula Formula { get { return formula; } }
 
         public Negation(IFormula neg)
         {
             formula = neg;
         }
 
-        public bool Equals(IFormula form)
+        public override bool Equals(object obj)
         {
-            if(form is Negation)
+            if ((obj == null) || !GetType().Equals(obj.GetType()))
             {
-                Negation neg = form as Negation;
-                return formula.Equals(neg.formula);
+                return false;
             }
-            return false;
+            else
+            {
+                return ToString() == ((Negation)obj).ToString();
+            }
+        }
+
+        public override int GetHashCode()
+        {
+            return ToString().GetHashCode();
         }
 
         public override string ToString()
@@ -72,17 +87,21 @@ namespace Natural_Deduction_Tool
             right = r;
         }
 
-        public bool Equals(IFormula form)
+        public override bool Equals(object obj)
         {
-            if (form is Disjunction)
+            if ((obj == null) || !GetType().Equals(obj.GetType()))
             {
-                Disjunction klos = form as Disjunction;
-                if (left.Equals(klos.left))
-                {
-                    return right.Equals(klos.right);
-                }
+                return false;
             }
-            return false;
+            else
+            {
+                return ToString() == ((Disjunction)obj).ToString();
+            }
+        }
+
+        public override int GetHashCode()
+        {
+            return ToString().GetHashCode();
         }
 
         public override string ToString()
@@ -94,6 +113,8 @@ namespace Natural_Deduction_Tool
     class Conjunction : IFormula
     {
         IFormula left, right;
+        public IFormula Left { get { return left; } }
+        public IFormula Right { get { return right; } }
 
         public Conjunction(IFormula l, IFormula r)
         {
@@ -101,17 +122,21 @@ namespace Natural_Deduction_Tool
             right = r;
         }
 
-        public bool Equals(IFormula form)
+        public override bool Equals(object obj)
         {
-            if (form is Conjunction)
+            if ((obj == null) || !GetType().Equals(obj.GetType()))
             {
-                Conjunction conj = form as Conjunction;
-                if (left.Equals(conj.left))
-                {
-                    return right.Equals(conj.right);
-                }
+                return false;
             }
-            return false;
+            else
+            {
+                return ToString() == ((Conjunction)obj).ToString();
+            }
+        }
+
+        public override int GetHashCode()
+        {
+            return ToString().GetHashCode();
         }
 
         public override string ToString()
@@ -130,17 +155,21 @@ namespace Natural_Deduction_Tool
             right = r;
         }
 
-        public bool Equals(IFormula form)
+        public override bool Equals(object obj)
         {
-            if (form is Implication)
+            if ((obj == null) || !GetType().Equals(obj.GetType()))
             {
-                Implication imp = form as Implication;
-                if (left.Equals(imp.left))
-                {
-                    return right.Equals(imp.right);
-                }
+                return false;
             }
-            return false;
+            else
+            {
+                return ToString() == ((Implication)obj).ToString();
+            }
+        }
+
+        public override int GetHashCode()
+        {
+            return ToString().GetHashCode();
         }
 
         public override string ToString()
@@ -159,17 +188,21 @@ namespace Natural_Deduction_Tool
             right = r;
         }
 
-        public bool Equals(IFormula form)
+        public override bool Equals(object obj)
         {
-            if (form is Iff)
+            if ((obj == null) || !GetType().Equals(obj.GetType()))
             {
-                Iff iff = form as Iff;
-                if (left.Equals(iff.left))
-                {
-                    return right.Equals(iff.right);
-                }
+                return false;
             }
-            return false;
+            else
+            {
+                return ToString() == ((Iff)obj).ToString();
+            }
+        }
+
+        public override int GetHashCode()
+        {
+            return ToString().GetHashCode();
         }
 
         public override string ToString()
