@@ -17,20 +17,6 @@ namespace Natural_Deduction_Tool
             InitializeComponent();
         }
 
-        private void equalsBut_Click(object sender, EventArgs e)
-        {
-            IFormula form1 = FormParser.ParseFormula(formTxt1.Text.Trim());
-            IFormula form2 = FormParser.ParseFormula(formTxt2.Text.Trim());
-            if (form1.Equals(form2))
-            {
-                outputTxt.Text = "true";
-            }
-            else
-            {
-                outputTxt.Text = "false";
-            }
-        }
-
         private void proveBut_Click(object sender, EventArgs e)
         {
             List<IFormula> premises = new List<IFormula>();

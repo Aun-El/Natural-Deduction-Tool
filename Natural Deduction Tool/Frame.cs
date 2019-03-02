@@ -9,6 +9,7 @@ namespace Natural_Deduction_Tool
     public class Frame
     {
         public List<Tuple<IFormula, Node, Annotation>> frame;
+        public Tuple<IFormula, Node, Annotation> Last { get { return frame.Last(); } }
 
         public Frame()
         {
@@ -18,20 +19,37 @@ namespace Natural_Deduction_Tool
         public Frame(List<IFormula> premises)
         {
             frame = new List<Tuple<IFormula, Node, Annotation>>();
-            Node currentNode = null;
+            Node currentNode = new Node();
             foreach (IFormula premise in premises)
             {
-                if (currentNode != null)
+                /*if (currentNode != null)
                 {
                     currentNode = new Node(currentNode);
                 }
                 else
                 {
                     currentNode = new Node();
-                }
+                }*/
                 currentNode.facts.Add(premise);
                 frame.Add(new Tuple<IFormula, Node, Annotation>(premise, currentNode, new Annotation(new List<int>(), Rules.HYPO, false)));
             }
+        }
+
+        public Frame AddAss(IFormula form)
+        {
+            Frame output = new Frame();
+            Node newNode = new Node(frame.Last().Item2);
+            Annotation anno = new Annotation(Rules.ASS);
+
+            foreach (Tuple<IFormula, Node, Annotation> line in frame)
+            {
+                //New formulas will only be true in their current hypothesis interval
+                //It is only necessary to keep a seperate fact list for the interval the new formula will be added to
+                output.frame.Add(new Tuple<IFormula, Node, Annotation>(line.Item1, line.Item2, line.Item3));
+            }
+            output.frame.Add(new Tuple<IFormula, Node, Annotation>(form, newNode, anno));
+            newNode.facts.Add(form);
+            return output;
         }
 
         /// <summary>
@@ -65,7 +83,7 @@ namespace Natural_Deduction_Tool
                     output.frame.Add(new Tuple<IFormula, Node, Annotation>(line.Item1, line.Item2, line.Item3));
                 }
             }
-            output.frame.Add(new Tuple<IFormula, Node, Annotation>(form, node, anno));
+            output.frame.Add(new Tuple<IFormula, Node, Annotation>(form, newNode, anno));
             return output;
         }
 
@@ -89,7 +107,6 @@ namespace Natural_Deduction_Tool
                 {
                     newNode = line.Item2.Clone();
                     newNode.facts.Add(form);
-                    lastNode = newNode;
                     output.frame.Add(new Tuple<IFormula, Node, Annotation>(line.Item1, newNode, line.Item3));
                 }
                 else if (line.Item2 == lastNode)
@@ -101,23 +118,88 @@ namespace Natural_Deduction_Tool
                     output.frame.Add(new Tuple<IFormula, Node, Annotation>(line.Item1, line.Item2, line.Item3));
                 }
             }
-            output.frame.Add(new Tuple<IFormula, Node, Annotation>(form, lastNode, anno));
+            output.frame.Add(new Tuple<IFormula, Node, Annotation>(form, newNode, anno));
             return output;
         }
 
+        /// <summary>
+        /// Returns the formulas that are true in the hypothesis interval at the last line of the frame.
+        /// </summary>
+        /// <returns></returns>
         public HashSet<IFormula> ReturnFacts()
         {
             return frame.Last().Item2.ReturnFacts();
+        }
+
+        /// <summary>
+        /// Returns the formulas that are true in the specified hypothesis interval.
+        /// </summary>
+        /// <param name="node"></param>
+        /// <returns></returns>
+        public HashSet<IFormula> ReturnFacts(Node node)
+        {
+            return node.ReturnFacts();
         }
 
         public override string ToString()
         {
             StringBuilder output = new StringBuilder();
             int lineCounter = 1;
-
+            int intervalCounter = 1;
+            Node current = frame.First().Item2;
+            bool hypotheses = true;
+            bool newAss = false;
             foreach (Tuple<IFormula, Node, Annotation> line in frame)
             {
-                output.Append($"{lineCounter}\t{line.Item1}\t{line.Item3}\r\n");
+                if ((hypotheses && line.Item3.rule != Rules.HYPO) || newAss)
+                {
+                    hypotheses = false;
+                    newAss = false;
+                    output.Append("\t");
+                    for (int i = 0; i < intervalCounter; i++)
+                    {
+                        output.Append("| ");
+                    }
+                    for (int i = 0; i < 9 - intervalCounter; i++)
+                    {
+                        output.Append("-");
+                    }
+                    output.Append("\r\n");
+                }
+
+                if (line.Item2 != current)
+                {
+                    //Hypothesis interval closed
+                    if (line.Item3.rule != Rules.ASS)
+                    {
+                        intervalCounter--;
+                    }
+
+                    //Hypothesis interval closed and new one opened
+                    else if (line.Item2.parent == current.parent)
+                    {
+                        newAss = true;
+                        for (int i = 0; i < intervalCounter - 1; i++)
+                        {
+                            output.Append("| ");
+                        }
+                        output.Append("\r\n");
+                    }
+
+                    //New hypothesis interval was opened
+                    else
+                    {
+                        intervalCounter++;
+                        newAss = true;
+                    }
+                    current = line.Item2;
+                }
+                output.Append($"{lineCounter}\t");
+                for (int i = 0; i < intervalCounter; i++)
+                {
+                    output.Append("| ");
+                }
+                output.Append($"{line.Item1}\t{line.Item3}\r\n");
                 lineCounter++;
             }
 
@@ -129,20 +211,20 @@ namespace Natural_Deduction_Tool
     {
         public Node parent;
         public List<IFormula> facts;
+        public List<Node> children;
 
         public Node()
         {
             facts = new List<IFormula>();
+            children = new List<Node>();
         }
 
         public Node(Node par)
         {
             facts = new List<IFormula>();
-            foreach (IFormula fact in par.facts)
-            {
-                facts.Add(fact);
-            }
+            children = new List<Node>();
             parent = par;
+            parent.children.Add(this);
         }
 
         public Node Clone()
@@ -153,7 +235,37 @@ namespace Natural_Deduction_Tool
                 output.facts.Add(fact);
             }
             output.parent = parent;
+            List<Node> newChildren = new List<Node>();
+            foreach(Node child in children)
+            {
+                newChildren.Add(child.Clone());
+            }
+            output.children = newChildren;
             return output;
+        }
+
+        /// <summary>
+        /// Compares two intervals. If the parameter interval is the same of as the interval or an ancestor it will return true.
+        /// </summary>
+        /// <param name="node"></param>
+        /// <returns></returns>
+        public bool ThisOrParent(Node node)
+        {
+            if (this == node)
+            {
+                return true;
+            }
+            else
+            {
+                if (node.parent != null)
+                {
+                    return ThisOrParent(node.parent);
+                }
+                else
+                {
+                    return false;
+                }
+            }
         }
 
         public HashSet<IFormula> ReturnFacts()
@@ -180,7 +292,7 @@ namespace Natural_Deduction_Tool
     public class Annotation
     {
         List<int> lines;
-        Rules rule;
+        public Rules rule;
         bool intro;
 
         public Annotation(List<int> lin, Rules rul, bool intr)
@@ -194,6 +306,13 @@ namespace Natural_Deduction_Tool
             }
         }
 
+        public Annotation(Rules rul)
+        {
+            lines = new List<int>();
+            rule = rul;
+            intro = true;
+        }
+
         public override string ToString()
         {
             StringBuilder output = new StringBuilder();
@@ -204,6 +323,9 @@ namespace Natural_Deduction_Tool
                     break;
                 case Rules.HYPO:
                     output.Append("Hypothesis");
+                    break;
+                case Rules.ASS:
+                    output.Append("Assumption");
                     break;
                 case Rules.BI:
                     output.Append($"<-> {HelpAnno()}");
@@ -255,6 +377,7 @@ namespace Natural_Deduction_Tool
         IMP,
         BI,
         NEG,
-        HYPO
+        HYPO,
+        ASS
     }
 }
