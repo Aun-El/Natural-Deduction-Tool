@@ -8,17 +8,17 @@ namespace Natural_Deduction_Tool
 {
     public class Frame
     {
-        public List<Tuple<IFormula, Node, Annotation>> frame;
-        public Tuple<IFormula, Node, Annotation> Last { get { return frame.Last(); } }
+        public List<Line> frame;
+        public Line Last { get { return frame.Last(); } }
 
         public Frame()
         {
-            frame = new List<Tuple<IFormula, Node, Annotation>>();
+            frame = new List<Line>();
         }
 
         public Frame(List<IFormula> premises)
         {
-            frame = new List<Tuple<IFormula, Node, Annotation>>();
+            frame = new List<Line>();
             Node currentNode = new Node();
             foreach (IFormula premise in premises)
             {
@@ -31,7 +31,7 @@ namespace Natural_Deduction_Tool
                     currentNode = new Node();
                 }*/
                 currentNode.facts.Add(premise);
-                frame.Add(new Tuple<IFormula, Node, Annotation>(premise, currentNode, new Annotation(new List<int>(), Rules.HYPO, false)));
+                frame.Add(new Line(premise, currentNode, new Annotation(new List<int>(), Rules.HYPO, false)));
             }
         }
 
@@ -41,13 +41,13 @@ namespace Natural_Deduction_Tool
             Node newNode = new Node(frame.Last().Item2);
             Annotation anno = new Annotation(Rules.ASS);
 
-            foreach (Tuple<IFormula, Node, Annotation> line in frame)
+            foreach (Line line in frame)
             {
                 //New formulas will only be true in their current hypothesis interval
                 //It is only necessary to keep a seperate fact list for the interval the new formula will be added to
-                output.frame.Add(new Tuple<IFormula, Node, Annotation>(line.Item1, line.Item2, line.Item3));
+                output.frame.Add(new Line(line.Item1, line.Item2, line.Item3));
             }
-            output.frame.Add(new Tuple<IFormula, Node, Annotation>(form, newNode, anno));
+            output.frame.Add(new Line(form, newNode, anno));
             newNode.facts.Add(form);
             return output;
         }
@@ -62,28 +62,33 @@ namespace Natural_Deduction_Tool
         public Frame AddForm(IFormula form, Node node, Annotation anno)
         {
             Frame output = new Frame();
-            Node newNode = null;
+            Node currentNode = frame.First().Item2;
+            Node newNode = currentNode.Clone();
+            Dictionary<Node, Node> links = new Dictionary<Node, Node>();
+            links[currentNode] = newNode;
 
-            foreach (Tuple<IFormula, Node, Annotation> line in frame)
+            foreach (Line line in frame)
             {
                 //New formulas will only be true in their current hypothesis interval
-                //It is only necessary to keep a seperate fact list for the interval the new formula will be added to
-                if (line.Item2 == node && newNode == null)
+                //It is only necessary to keep a seperate fact list for the interval the new formula will be added to    
+                if (currentNode != line.Item2)
                 {
-                    newNode = line.Item2.Clone();
-                    newNode.facts.Add(form);
-                    output.frame.Add(new Tuple<IFormula, Node, Annotation>(line.Item1, newNode, line.Item3));
+                    if (!links.ContainsKey(line.Item2))
+                    {
+                        newNode = line.Item2.Clone(newNode);
+                        currentNode = line.Item2;
+                        links[currentNode] = newNode;
+                    }
+                    else
+                    {
+                        currentNode = line.Item2;
+                        newNode = links[currentNode];
+                    }
                 }
-                else if (line.Item2 == node)
-                {
-                    output.frame.Add(new Tuple<IFormula, Node, Annotation>(line.Item1, newNode, line.Item3));
-                }
-                else
-                {
-                    output.frame.Add(new Tuple<IFormula, Node, Annotation>(line.Item1, line.Item2, line.Item3));
-                }
+                output.frame.Add(new Line(line.Item1, newNode, line.Item3));
             }
-            output.frame.Add(new Tuple<IFormula, Node, Annotation>(form, newNode, anno));
+            links[node].facts.Add(form);
+            output.frame.Add(new Line(form, links[node], anno));
             return output;
         }
 
@@ -96,29 +101,31 @@ namespace Natural_Deduction_Tool
         public Frame AddForm(IFormula form, Annotation anno)
         {
             Frame output = new Frame();
-            Node newNode = null;
+            Node currentNode = frame.First().Item2;
+            Node newNode = currentNode.Clone();
             Node lastNode = frame.Last().Item2;
+            Dictionary<Node, Node> links = new Dictionary<Node, Node>();
+            links[currentNode] = newNode;
 
-            foreach (Tuple<IFormula, Node, Annotation> line in frame)
+            foreach (Line line in frame)
             {
                 //New formulas will only be true in their current hypothesis interval
-                //It is only necessary to keep a seperate fact list for the interval the new formula will be added to
-                if (line.Item2 == lastNode && newNode == null)
+                //It is only necessary to keep a seperate fact list for the interval the new formula will be added to    
+                if (!links.ContainsKey(line.Item2))
                 {
-                    newNode = line.Item2.Clone();
-                    newNode.facts.Add(form);
-                    output.frame.Add(new Tuple<IFormula, Node, Annotation>(line.Item1, newNode, line.Item3));
-                }
-                else if (line.Item2 == lastNode)
-                {
-                    output.frame.Add(new Tuple<IFormula, Node, Annotation>(line.Item1, newNode, line.Item3));
+                    newNode = line.Item2.Clone(newNode);
+                    currentNode = line.Item2;
+                    links[currentNode] = newNode;
                 }
                 else
                 {
-                    output.frame.Add(new Tuple<IFormula, Node, Annotation>(line.Item1, line.Item2, line.Item3));
+                    currentNode = line.Item2;
+                    newNode = links[currentNode];
                 }
+                output.frame.Add(new Line(line.Item1, newNode, line.Item3));
             }
-            output.frame.Add(new Tuple<IFormula, Node, Annotation>(form, newNode, anno));
+            links[lastNode].facts.Add(form);
+            output.frame.Add(new Line(form, links[lastNode], anno));
             return output;
         }
 
@@ -128,7 +135,7 @@ namespace Natural_Deduction_Tool
         /// <returns></returns>
         public HashSet<IFormula> ReturnFacts()
         {
-            return frame.Last().Item2.ReturnFacts();
+            return Last.Item2.ReturnFacts();
         }
 
         /// <summary>
@@ -149,7 +156,7 @@ namespace Natural_Deduction_Tool
             Node current = frame.First().Item2;
             bool hypotheses = true;
             bool newAss = false;
-            foreach (Tuple<IFormula, Node, Annotation> line in frame)
+            foreach (Line line in frame)
             {
                 if ((hypotheses && line.Item3.rule != Rules.HYPO) || newAss)
                 {
@@ -207,24 +214,35 @@ namespace Natural_Deduction_Tool
         }
     }
 
+    public class Line
+    {
+        public IFormula Item1 { get; set; }
+        public Node Item2 { get; set; }
+        public Annotation Item3 { get; set; }
+        public HashSet<IFormula> Facts { get {return Item2.ReturnFacts(); } }
+
+        public Line(IFormula form, Node node, Annotation anno)
+        {
+            Item1 = form;
+            Item2 = node;
+            Item3 = anno;
+        }
+    }
+
     public class Node
     {
         public Node parent;
         public List<IFormula> facts;
-        public List<Node> children;
 
         public Node()
         {
             facts = new List<IFormula>();
-            children = new List<Node>();
         }
 
         public Node(Node par)
         {
             facts = new List<IFormula>();
-            children = new List<Node>();
             parent = par;
-            parent.children.Add(this);
         }
 
         public Node Clone()
@@ -235,17 +253,22 @@ namespace Natural_Deduction_Tool
                 output.facts.Add(fact);
             }
             output.parent = parent;
-            List<Node> newChildren = new List<Node>();
-            foreach(Node child in children)
+            return output;
+        }
+
+        public Node Clone(Node par)
+        {
+            Node output = new Node();
+            foreach (IFormula fact in facts)
             {
-                newChildren.Add(child.Clone());
+                output.facts.Add(fact);
             }
-            output.children = newChildren;
+            output.parent = par;
             return output;
         }
 
         /// <summary>
-        /// Compares two intervals. If the parameter interval is the same of as the interval or an ancestor it will return true.
+        /// Compares two intervals. If the interval is the same as the parameter interval or an ancestor thereof it will return true.
         /// </summary>
         /// <param name="node"></param>
         /// <returns></returns>

@@ -68,6 +68,24 @@ namespace Natural_Deduction_Tool
             return set;
         }
 
+        public IFormula RemoveRedundantNegs()
+        {
+            if (formula is Negation)
+            {
+                Negation neg = formula as Negation;
+                if(neg.formula is Negation)
+                {
+                    Negation neg2 = neg.formula as Negation;
+                    return neg2.RemoveRedundantNegs();
+                }
+                return neg.formula;
+            }
+            else
+            {
+                return this;
+            }
+        }
+
         public override bool Equals(object obj)
         {
             if ((obj == null) || !GetType().Equals(obj.GetType()))
