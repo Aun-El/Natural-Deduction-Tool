@@ -11,8 +11,15 @@ namespace Natural_Deduction_Tool
         public static HashSet<Frame> ClosedList { get; private set; }
         public static Queue<Frame> Fringe { get; private set; }
         public static HashSet<IFormula> SubForms { get; private set; }
+        public static HashSet<IFormula> PremiseSubForms { get; private set; }
 
-        public static string Proof(List<IFormula> premises, IFormula conclusion)
+        /// <summary>
+        /// Tries to prove a conclusion from a set of premises.
+        /// </summary>
+        /// <param name="frame"></param>
+        /// <param name="conclusion"></param>
+        /// <returns></returns>
+        public static string Prove(List<IFormula> premises, IFormula conclusion)
         {
             if (!premises.Any())
             {
@@ -21,7 +28,7 @@ namespace Natural_Deduction_Tool
             Frame init = new Frame(premises);
             Fringe = new Queue<Frame>();
             SubForms = conclusion.GetSubForms(new HashSet<IFormula>());
-
+            PremiseSubForms = new HashSet<IFormula>();
             //TODO: Make the magic happen
             //TODO: Loop through all rules and see which ones can be applied
 
@@ -32,6 +39,14 @@ namespace Natural_Deduction_Tool
                     return init.ToString();
                 }
                 SubForms = premise.GetSubForms(SubForms);
+                PremiseSubForms = premise.GetSubForms(PremiseSubForms);
+            }
+
+            Goal goal = new Goal(conclusion);
+            Frame finalFrame = goal.Prove(init);
+            if(finalFrame != null)
+            {
+                return finalFrame.ToString();
             }
 
             if (premises.Count == 1 && premises[0].Equals(new PropVar("\u22a4")))
@@ -65,7 +80,7 @@ namespace Natural_Deduction_Tool
                 //Only perform conjunction introduction if the conclusion is a conjunction (to prevent memory overload)
                 foreach (Frame inference in ConjIntro(currentFrame))
                 {
-                    if (inference.frame.Last().Item1.Equals(conclusion))
+                    if (inference.frame.First().Facts.Contains(conclusion))
                     {
                         return inference.ToString();
                     }
@@ -73,7 +88,7 @@ namespace Natural_Deduction_Tool
                 }
                 foreach (Frame inference in ConjElim(currentFrame))
                 {
-                    if (inference.frame.Last().Item1.Equals(conclusion))
+                    if (inference.frame.First().Facts.Contains(conclusion))
                     {
                         return inference.ToString();
                     }
@@ -81,7 +96,15 @@ namespace Natural_Deduction_Tool
                 }
                 foreach (Frame inference in DisjIntro(currentFrame))
                 {
-                    if (inference.frame.Last().Item1.Equals(conclusion))
+                    if (inference.frame.First().Facts.Contains(conclusion))
+                    {
+                        return inference.ToString();
+                    }
+                    Fringe.Enqueue(inference);
+                }
+                foreach (Frame inference in DisjElim(currentFrame))
+                {
+                    if (inference.frame.First().Facts.Contains(conclusion))
                     {
                         return inference.ToString();
                     }
@@ -89,7 +112,7 @@ namespace Natural_Deduction_Tool
                 }
                 foreach (Frame inference in NegIntro(currentFrame))
                 {
-                    if (inference.frame.Last().Item1.Equals(conclusion))
+                    if (inference.frame.First().Facts.Contains(conclusion))
                     {
                         return inference.ToString();
                     }
@@ -97,7 +120,7 @@ namespace Natural_Deduction_Tool
                 }
                 foreach (Frame inference in NegElim(currentFrame))
                 {
-                    if (inference.frame.Last().Item1.Equals(conclusion))
+                    if (inference.frame.First().Facts.Contains(conclusion))
                     {
                         return inference.ToString();
                     }
@@ -105,7 +128,7 @@ namespace Natural_Deduction_Tool
                 }
                 foreach (Frame inference in ImplIntro(currentFrame))
                 {
-                    if (inference.frame.Last().Item1.Equals(conclusion))
+                    if (inference.frame.First().Facts.Contains(conclusion))
                     {
                         return inference.ToString();
                     }
@@ -113,7 +136,7 @@ namespace Natural_Deduction_Tool
                 }
                 foreach (Frame inference in ImplElim(currentFrame))
                 {
-                    if (inference.frame.Last().Item1.Equals(conclusion))
+                    if (inference.frame.First().Facts.Contains(conclusion))
                     {
                         return inference.ToString();
                     }
@@ -121,7 +144,7 @@ namespace Natural_Deduction_Tool
                 }
                 foreach (Frame inference in IffIntro(currentFrame))
                 {
-                    if (inference.frame.Last().Item1.Equals(conclusion))
+                    if (inference.frame.First().Facts.Contains(conclusion))
                     {
                         return inference.ToString();
                     }
@@ -129,7 +152,7 @@ namespace Natural_Deduction_Tool
                 }
                 foreach (Frame inference in IffElim(currentFrame))
                 {
-                    if (inference.frame.Last().Item1.Equals(conclusion))
+                    if (inference.frame.First().Facts.Contains(conclusion))
                     {
                         return inference.ToString();
                     }
@@ -137,6 +160,157 @@ namespace Natural_Deduction_Tool
                 }
             }
             return "I can not prove this (yet).";
+        }
+
+        /// <summary>
+        /// Tries to prove a goal within a frame. Returns the new frame if successful, returns null otherwise.
+        /// </summary>
+        /// <param name="frame"></param>
+        /// <param name="goal"></param>
+        /// <returns></returns>
+        public static Frame Prove(Frame frame, IFormula goal)
+        {
+            //TODO: Make the magic happen
+            //TODO: Loop through all rules and see which ones can be applied
+
+            Fringe.Enqueue(frame);
+
+            while (Fringe.Any())
+            {
+                Frame currentFrame = Fringe.Dequeue();
+
+                //Only perform conjunction introduction if the conclusion is a conjunction (to prevent memory overload)
+                foreach (Frame inference in ConjIntro(currentFrame))
+                {
+                    if (inference.frame.First().Facts.Contains(goal))
+                    {
+                        return inference;
+                    }
+                    Fringe.Enqueue(inference);
+                }
+                foreach (Frame inference in ConjElim(currentFrame))
+                {
+                    if (inference.frame.First().Facts.Contains(goal))
+                    {
+                        return inference;
+                    }
+                    Fringe.Enqueue(inference);
+                }
+                foreach (Frame inference in DisjIntro(currentFrame))
+                {
+                    if (inference.frame.First().Facts.Contains(goal))
+                    {
+                        return inference;
+                    }
+                    Fringe.Enqueue(inference);
+                }
+                foreach (Frame inference in DisjElim(currentFrame))
+                {
+                    if (inference.frame.First().Facts.Contains(goal))
+                    {
+                        return inference;
+                    }
+                    Fringe.Enqueue(inference);
+                }
+                foreach (Frame inference in NegIntro(currentFrame))
+                {
+                    if (inference.frame.First().Facts.Contains(goal))
+                    {
+                        return inference;
+                    }
+                    Fringe.Enqueue(inference);
+                }
+                foreach (Frame inference in NegElim(currentFrame))
+                {
+                    if (inference.frame.First().Facts.Contains(goal))
+                    {
+                        return inference;
+                    }
+                    Fringe.Enqueue(inference);
+                }
+                foreach (Frame inference in ImplIntro(currentFrame))
+                {
+                    if (inference.frame.First().Facts.Contains(goal))
+                    {
+                        return inference;
+                    }
+                    Fringe.Enqueue(inference);
+                }
+                foreach (Frame inference in ImplElim(currentFrame))
+                {
+                    if (inference.frame.First().Facts.Contains(goal))
+                    {
+                        return inference;
+                    }
+                    Fringe.Enqueue(inference);
+                }
+                foreach (Frame inference in IffIntro(currentFrame))
+                {
+                    if (inference.frame.First().Facts.Contains(goal))
+                    {
+                        return inference;
+                    }
+                    Fringe.Enqueue(inference);
+                }
+                foreach (Frame inference in IffElim(currentFrame))
+                {
+                    if (inference.frame.First().Facts.Contains(goal))
+                    {
+                        return inference;
+                    }
+                    Fringe.Enqueue(inference);
+                }
+            }
+            return null;
+        }
+
+        public static Frame ApplyImplIntro(Frame frame, IFormula ante, IFormula cons)
+        {
+            Tuple<Interval,Interval> intervals = FindInt(frame, ante, cons);
+            if (intervals.Item1 == null || intervals.Item2 == null)
+            {
+                throw new Exception("Tried applying ImplIntro on non-existing conjuncts.");
+            }
+            List<IFormula> forms = new List<IFormula> { cons };
+            Tuple<Frame, List<int>> newFrame = REI(frame, forms);
+            return newFrame.Item1.AddForm(new Implication(ante,cons), newFrame.Item1.Last.Item2.parent, new Annotation(newFrame.Item2, Rules.IMP, true));
+        }
+
+        public static Frame ApplyImplElim(Frame frame, Implication impl)
+        {
+            Interval implInt = FindInt(frame, impl);
+            if (implInt == null)
+            {
+                throw new Exception("Tried applying ImplElim on non-existing implication.");
+            }
+            foreach (Line line in frame.frame)
+            {
+                if (line.Item1.Equals(impl.Antecedent) && line.Item2.ThisOrParent(implInt))
+                {
+                    List<IFormula> forms = new List<IFormula> { impl, impl.Antecedent };
+                    Tuple<Frame, List<int>> newFrame = REI(frame, forms);
+                    return newFrame.Item1.AddForm(impl.Consequent, new Annotation(newFrame.Item2, Rules.IMP, false));
+                }
+            }
+            throw new Exception("Tried applying ImplElim while antecedent was not known.");
+        }
+
+        public static Frame ApplyConjIntro(Frame frame, IFormula left, IFormula right)
+        {
+            Tuple<Interval, Interval> intervals = FindInt(frame, left, right);
+            if (intervals.Item1 == null || intervals.Item2 == null)
+            {
+                throw new Exception("Tried applying ConjIntro on non-existing conjuncts.");
+            }
+            List<IFormula> forms = new List<IFormula> { left, right };
+            Tuple<Frame, List<int>> newFrame = REI(frame, forms);
+            return newFrame.Item1.AddForm(new Conjunction(left, right), new Annotation(newFrame.Item2, Rules.AND, true));
+        }
+
+        public static Frame ApplyREI(Frame frame, IFormula goal)
+        {
+            List<IFormula> forms = new List<IFormula>() { goal };
+            return REI(frame, forms).Item1;
         }
 
         private static List<Frame> NegIntro(Frame frame)
@@ -312,124 +486,43 @@ namespace Natural_Deduction_Tool
         private static List<Frame> DisjElim(Frame frame)
         {
             List<Frame> output = new List<Frame>();
-            HashSet<IFormula> facts = frame.ReturnFacts();
 
             foreach (Line line in frame.frame)
             {
                 if (line.Item1 is Disjunction)
                 {
+                    HashSet<IFormula> facts = line.Item2.ReturnFacts();
                     Disjunction disj = line.Item1 as Disjunction;
-                    bool leftFound = false;
-                    bool rightFound = false;
-                    int leftIndex = 0;
-                    int rightIndex = 0;
-                    HashSet<IFormula> leftFacts = null;
-                    HashSet<IFormula> rightFacts = null;
-                    Node leftNode = null;
-                    Node rightNode = null;
-
+                    int DisjLine = frame.frame.IndexOf(line);
+                    List<Tuple<IFormula, Interval>> factsLeft = new List<Tuple<IFormula, Interval>>();
+                    List<Tuple<IFormula, Interval>> factsRight = new List<Tuple<IFormula, Interval>>();
+                    List<Tuple<IFormula, Interval>> factsBoth = new List<Tuple<IFormula, Interval>>();
                     foreach (Line line2 in frame.frame)
                     {
-                        if (line2.Item1.Equals(disj.Left) && line2.Item3.rule == Rules.ASS)
+                        if (line2.Item3.rule == Rules.ASS && line2.Item2.parent == line.Item2 && line2.Item1.Equals(disj.Left))
                         {
-                            leftIndex = frame.frame.IndexOf(line2);
-                            leftFound = true;
-                            leftFacts = line2.Item2.ReturnFacts();
-                            leftNode = line2.Item2;
-                        }
-                        if (line2.Item1.Equals(disj.Right) && line2.Item3.rule == Rules.ASS)
-                        {
-                            rightIndex = frame.frame.IndexOf(line2);
-                            rightFound = true;
-                            rightFacts = line2.Item2.ReturnFacts();
-                            rightNode = line2.Item2;
-                        }
-                        if (leftFound && rightFound)
-                        {
-                            leftFound = false;
-                            rightFound = false;
-
-                            //Intersect the facts of both hypothesis intervals
-                            rightFacts.IntersectWith(leftFacts);
-                            foreach (IFormula sharedFact in rightFacts)
+                            foreach (IFormula fact in line2.Item2.facts)
                             {
-                                bool leftREI = false;
-                                bool rightREI = false;
-                                foreach (Line line3 in frame.frame)
-                                {
-                                    if (line3.Item1.Equals(sharedFact) && line3.Item2.ThisOrParent(leftNode))
-                                    {
-                                        leftREI = line3.Item2 != leftNode;
-                                    }
-                                    if (line3.Item1.Equals(sharedFact) && line3.Item2.ThisOrParent(rightNode))
-                                    {
-                                        rightREI = line3.Item2 != rightNode;
-                                    }
-                                    break;
-                                }
-                                bool cont1 = true;
-                                Node currentNode = frame.frame[leftIndex].Item2;
-                                Line leftLine = new Line(null, null, null);
-                                Line rightLine = new Line(null, null, null);
-                                leftIndex++;
-                                while (cont1)
-                                {
-                                    if (frame.frame[leftIndex].Item1 == sharedFact)
-                                    {
-                                        break;
-                                    }
-                                    if (!frame.frame[leftIndex].Item2.ThisOrParent(currentNode))
-                                    {
-                                        cont1 = false;
-                                    }
-                                    leftIndex++;
-                                }
-
-                                bool cont2 = true;
-                                currentNode = frame.frame[rightIndex].Item2;
-                                rightIndex++;
-                                while (cont2)
-                                {
-                                    if (frame.frame[rightIndex].Item1 == sharedFact)
-                                    {
-                                        break;
-                                    }
-                                    if (!frame.frame[rightIndex].Item2.ThisOrParent(currentNode))
-                                    {
-                                        cont2 = false;
-                                    }
-                                    rightIndex++;
-                                }
-                                List<int> lines = new List<int>();
-                                if (cont1)
-                                {
-                                    lines.Add(leftIndex + 1);
-                                }
-                                else
-                                {
-                                    output.Add(frame.AddForm(sharedFact, line2.Item2.parent, new Annotation(lines, Rules.REI, false)));
-                                }
-                                lines.Add(frame.frame.IndexOf(line2) + 1);
-                                output.Add(frame.AddForm(sharedFact, line2.Item2.parent, new Annotation(lines, Rules.OR, false)));
-
+                                factsLeft.Add(new Tuple<IFormula, Interval>(fact, line2.Item2));
+                            }
+                        }
+                        if (line2.Item3.rule == Rules.ASS && line2.Item2.parent == line.Item2 && line2.Item1.Equals(disj.Right))
+                        {
+                            foreach (IFormula fact in line2.Item2.facts)
+                            {
+                                factsRight.Add(new Tuple<IFormula, Interval>(fact, line2.Item2));
                             }
                         }
                     }
-                }
-                //Assumptions always have a parent hypothesis interval
-                if (line.Item3.rule == Rules.ASS)
-                {
-                    foreach (Line line2 in frame.frame)
+                    foreach (Tuple<IFormula, Interval> fact in factsLeft)
                     {
-                        if (line2.Item2.ThisOrParent(line.Item2))
+                        foreach (Tuple<IFormula, Interval> fact2 in factsRight)
                         {
-                            Implication impl = new Implication(line.Item1, line2.Item1);
-                            if (!line.Item2.parent.ReturnFacts().Contains(impl))
+                            if (fact.Item1.Equals(fact2.Item1) && !facts.Contains(fact.Item1))
                             {
-                                List<int> lines = new List<int>();
-                                lines.Add(frame.frame.IndexOf(line) + 1);
-                                lines.Add(frame.frame.IndexOf(line2) + 1);
-                                output.Add(frame.AddForm(impl, line.Item2.parent, new Annotation(lines, Rules.IMP, true)));
+                                List<Tuple<IFormula, Interval>> forms = new List<Tuple<IFormula, Interval>> { fact, fact2 };
+                                Tuple<Frame, List<int>> newFrame = REI(frame, forms);
+                                output.Add(newFrame.Item1.AddForm(fact.Item1, newFrame.Item1.frame[DisjLine].Item2, new Annotation(newFrame.Item2, Rules.OR, false)));
                             }
                         }
                     }
@@ -456,8 +549,9 @@ namespace Natural_Deduction_Tool
                             Implication impl = new Implication(line.Item1, line2.Item1);
                             if (!line.Item2.parent.ReturnFacts().Contains(impl) && SubForms.Contains(impl))
                             {
-                                List<IFormula> forms = new List<IFormula> { line.Item1, line2.Item1 };
+                                List<IFormula> forms = new List<IFormula> { line2.Item1 };
                                 Tuple<Frame, List<int>> newFrame = REI(frame, forms);
+                                newFrame.Item2.Insert(0, frame.frame.IndexOf(line) + 1);
                                 output.Add(newFrame.Item1.AddForm(impl, newFrame.Item1.frame[AssLine].Item2.parent, new Annotation(newFrame.Item2, Rules.IMP, true)));
                             }
                         }
@@ -470,7 +564,7 @@ namespace Natural_Deduction_Tool
         private static List<Frame> ImplElim(Frame frame)
         {
             List<Frame> output = new List<Frame>();
-            Node currentNode = frame.Last.Item2;
+            Interval currentNode = frame.Last.Item2;
             foreach (Line line in frame.frame)
             {
                 if (line.Item2.ThisOrParent(currentNode) && line.Item1 is Implication)
@@ -562,17 +656,28 @@ namespace Natural_Deduction_Tool
             return output;
         }
 
+        /// <summary>
+        /// Reiterates the formulas that do not appear in the last interval of the frame.
+        /// </summary>
+        /// <param name="frame"></param>
+        /// <param name="forms"></param>
+        /// <returns></returns>
         private static Tuple<Frame, List<int>> REI(Frame frame, List<IFormula> forms)
         {
             Frame output = frame;
-            Node lastNode = output.Last.Item2;
+            Interval lastNode = output.Last.Item2;
             List<int> list = new List<int>();
             List<int> outputList = new List<int>();
+            Frame intermediate = output;
             foreach (IFormula form in forms)
             {
+                //Reiterate the formula if it is not present in the current hypothesis interval
+                //Otherwise just add the number of its location to the list of numbers to cite in the actual rule application
+
+                intermediate = output;
+
                 if (!lastNode.facts.Contains(form))
                 {
-                    Frame intermediate = output;
                     foreach (Line line in output.frame)
                     {
                         if (line.Item1.Equals(form) && line.Item2.ThisOrParent(lastNode))
@@ -583,15 +688,71 @@ namespace Natural_Deduction_Tool
                             break;
                         }
                     }
-                    output = intermediate;
-                    lastNode = output.Last.Item2;
-                    list.Clear();
                 }
                 else
                 {
                     foreach (Line line in output.frame)
                     {
                         if (line.Item1.Equals(form) && lastNode == line.Item2)
+                        {
+                            //Reiterate an assumption in its own interval if there will be no other things in that interval
+                            if (line.Item2.facts.Count == 1 && forms.Count == 1)
+                            {
+                                list.Add(output.frame.IndexOf(line) + 1);
+                                intermediate = output.AddForm(form, new Annotation(list, Rules.REI, true));
+                                outputList.Add(intermediate.frame.Count);
+                            }
+                            else
+                            {
+                                outputList.Add(output.frame.IndexOf(line) + 1);
+                            }
+                            break;
+                        }
+                    }
+                }
+                output = intermediate;
+                lastNode = output.Last.Item2;
+                list.Clear();
+            }
+            return new Tuple<Frame, List<int>>(output, outputList);
+        }
+
+        /// <summary>
+        /// Reiterates the formulas that do not appear in the interval they are linked to in the forms parameter.
+        /// </summary>
+        /// <param name="frame"></param>
+        /// <param name="forms"></param>
+        /// <returns></returns>
+        private static Tuple<Frame, List<int>> REI(Frame frame, List<Tuple<IFormula, Interval>> forms)
+        {
+            Frame output = frame;
+            List<int> list = new List<int>();
+            List<int> outputList = new List<int>();
+            foreach (Tuple<IFormula, Interval> tuple in forms)
+            {
+                //Reiterate the formula if it is not present in the current hypothesis interval
+                //Otherwise just add the number of its location to the list of numbers to cite in the actual rule application
+                if (!tuple.Item2.facts.Contains(tuple.Item1))
+                {
+                    Frame intermediate = output;
+                    foreach (Line line in output.frame)
+                    {
+                        if (line.Item1.Equals(tuple.Item1) && line.Item2.ThisOrParent(tuple.Item2))
+                        {
+                            list.Add(output.frame.IndexOf(line) + 1);
+                            intermediate = output.AddForm(tuple.Item1, tuple.Item2, new Annotation(list, Rules.REI, true));
+                            outputList.Add(intermediate.frame.Count);
+                            break;
+                        }
+                    }
+                    output = intermediate;
+                    list.Clear();
+                }
+                else
+                {
+                    foreach (Line line in output.frame)
+                    {
+                        if (line.Item1.Equals(tuple.Item1) && tuple.Item2 == line.Item2)
                         {
                             outputList.Add(output.frame.IndexOf(line) + 1);
                             break;
@@ -600,6 +761,60 @@ namespace Natural_Deduction_Tool
                 }
             }
             return new Tuple<Frame, List<int>>(output, outputList);
+        }
+
+
+        /// <summary>
+        /// Returns the intervals on which the two parameter formulas can be found.
+        /// </summary>
+        /// <param name="frame"></param>
+        /// <param name="form1"></param>
+        /// <param name="form2"></param>
+        /// <returns></returns>
+        private static Tuple<Interval, Interval> FindInt(Frame frame, IFormula form1, IFormula form2)
+        {
+            Interval last = frame.Last.Item2;
+            Interval int1 = null;
+            Interval int2 = null;
+            for (int i = 0; i < frame.frame.Count; i++)
+            {
+                if (frame.frame[i].Item2.ThisOrParent(last))
+                {
+                    if (form1.Equals(frame.frame[i].Item1))
+                    {
+                        int1 = frame.frame[i].Item2;
+                    }
+                    if (form2.Equals(frame.frame[i].Item1))
+                    {
+                        int2 = frame.frame[i].Item2;
+                    }
+                }
+            }
+            return new Tuple<Interval, Interval>(int1, int2);
+        }
+
+        /// <summary>
+        /// Returns the interval on which the parameter formula can be found.
+        /// </summary>
+        /// <param name="frame"></param>
+        /// <param name="form"></param>
+        /// <returns></returns>
+        private static Interval FindInt(Frame frame, IFormula form)
+        {
+            Interval last = frame.Last.Item2;
+            Interval interval = null;
+            for (int i = 0; i < frame.frame.Count; i++)
+            {
+                if (frame.frame[i].Item2.ThisOrParent(last))
+                {
+                    if (form.Equals(frame.frame[i].Item1))
+                    {
+                        interval = frame.frame[i].Item2;
+                        break;
+                    }
+                }
+            }
+            return interval;
         }
     }
 }

@@ -109,7 +109,7 @@ namespace Natural_Deduction_Tool
         }
     }
 
-    class Disjunction : IFormula
+    public class Disjunction : IFormula
     {
         IFormula left, right;
 
@@ -153,7 +153,7 @@ namespace Natural_Deduction_Tool
         }
     }
 
-    class Conjunction : IFormula
+    public class Conjunction : IFormula
     {
         IFormula left, right;
         public IFormula Left { get { return left; } }
@@ -196,7 +196,7 @@ namespace Natural_Deduction_Tool
         }
     }
 
-    class Implication : IFormula
+    public class Implication : IFormula
     {
         IFormula left, right;
         public IFormula Antecedent { get { return left; } }
@@ -239,7 +239,7 @@ namespace Natural_Deduction_Tool
         }
     }
 
-    class Iff : IFormula
+    public class Iff : IFormula
     {
         IFormula left, right;
         public IFormula Left { get { return left; } }

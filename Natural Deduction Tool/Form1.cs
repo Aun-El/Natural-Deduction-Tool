@@ -24,12 +24,31 @@ namespace Natural_Deduction_Tool
             {
                 foreach (string s in premiseTxt.Text.Split(','))
                 {
-                    premises.Add(FormParser.ParseFormula(s.Trim()));
+                    try { premises.Add(FormParser.ParseFormula(s.Trim())); }
+                    catch { proofTxt.Text = "Please enter valid premises."; }
                 }
             }
-            IFormula conclusion = FormParser.ParseFormula(conclTxt.Text.Trim());
+            if (conclTxt.Text.Trim() != "")
+            {
+                bool validConcl = false;
+                IFormula conclusion = null;
+                try
+                {
+                    conclusion = FormParser.ParseFormula(conclTxt.Text.Trim());
+                    validConcl = true;
+                }
+                catch { proofTxt.Text = "Please enter a valid conclusion."; }
 
-            proofTxt.Text = Searcher.Proof(premises, conclusion) + $"\r\n\t{conclusion}\tconclusion";
+                if (validConcl)
+                {
+                    proofTxt.Text = Searcher.Prove(premises, conclusion);
+                }
+            }
+            else
+            {
+                proofTxt.Text = "Please enter a conclusion.";
+            }
+
         }
     }
 }

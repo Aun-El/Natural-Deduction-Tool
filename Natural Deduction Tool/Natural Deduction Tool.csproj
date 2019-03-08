@@ -52,6 +52,7 @@
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
     <Compile Include="Frame.cs" />
+    <Compile Include="Goal.cs" />
     <Compile Include="IFormula.cs" />
     <Compile Include="FormParser.cs" />
     <Compile Include="Program.cs" />

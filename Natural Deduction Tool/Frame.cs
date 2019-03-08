@@ -19,7 +19,7 @@ namespace Natural_Deduction_Tool
         public Frame(List<IFormula> premises)
         {
             frame = new List<Line>();
-            Node currentNode = new Node();
+            Interval currentNode = new Interval();
             foreach (IFormula premise in premises)
             {
                 /*if (currentNode != null)
@@ -38,7 +38,7 @@ namespace Natural_Deduction_Tool
         public Frame AddAss(IFormula form)
         {
             Frame output = new Frame();
-            Node newNode = new Node(frame.Last().Item2);
+            Interval newNode = new Interval(frame.Last().Item2);
             Annotation anno = new Annotation(Rules.ASS);
 
             foreach (Line line in frame)
@@ -59,22 +59,25 @@ namespace Natural_Deduction_Tool
         /// <param name="node"></param>
         /// <param name="anno"></param>
         /// <returns></returns>
-        public Frame AddForm(IFormula form, Node node, Annotation anno)
+        public Frame AddForm(IFormula form, Interval node, Annotation anno)
         {
             Frame output = new Frame();
-            Node currentNode = frame.First().Item2;
-            Node newNode = currentNode.Clone();
-            Dictionary<Node, Node> links = new Dictionary<Node, Node>();
+            Interval currentNode = frame.First().Item2;
+            Interval newNode = currentNode.Clone();
+            Dictionary<Interval, Interval> links = new Dictionary<Interval, Interval>();
             links[currentNode] = newNode;
 
+            if (frame.Last().Item2 != node && frame.Last().Item2.parent != node)
+            {
+                throw new Exception("Illegal AddForm call");
+            }
             foreach (Line line in frame)
             {
-                //New formulas will only be true in their current hypothesis interval
-                //It is only necessary to keep a seperate fact list for the interval the new formula will be added to    
                 if (currentNode != line.Item2)
                 {
                     if (!links.ContainsKey(line.Item2))
                     {
+                        //Add new entry to the dictionary if the interval has not yet been seen, i.e. a new interval has been opened
                         newNode = line.Item2.Clone(newNode);
                         currentNode = line.Item2;
                         links[currentNode] = newNode;
@@ -101,16 +104,14 @@ namespace Natural_Deduction_Tool
         public Frame AddForm(IFormula form, Annotation anno)
         {
             Frame output = new Frame();
-            Node currentNode = frame.First().Item2;
-            Node newNode = currentNode.Clone();
-            Node lastNode = frame.Last().Item2;
-            Dictionary<Node, Node> links = new Dictionary<Node, Node>();
+            Interval currentNode = frame.First().Item2;
+            Interval newNode = currentNode.Clone();
+            Interval lastNode = frame.Last().Item2;
+            Dictionary<Interval, Interval> links = new Dictionary<Interval, Interval>();
             links[currentNode] = newNode;
 
             foreach (Line line in frame)
             {
-                //New formulas will only be true in their current hypothesis interval
-                //It is only necessary to keep a seperate fact list for the interval the new formula will be added to    
                 if (!links.ContainsKey(line.Item2))
                 {
                     newNode = line.Item2.Clone(newNode);
@@ -143,7 +144,7 @@ namespace Natural_Deduction_Tool
         /// </summary>
         /// <param name="node"></param>
         /// <returns></returns>
-        public HashSet<IFormula> ReturnFacts(Node node)
+        public HashSet<IFormula> ReturnFacts(Interval node)
         {
             return node.ReturnFacts();
         }
@@ -153,7 +154,7 @@ namespace Natural_Deduction_Tool
             StringBuilder output = new StringBuilder();
             int lineCounter = 1;
             int intervalCounter = 1;
-            Node current = frame.First().Item2;
+            Interval current = frame.First().Item2;
             bool hypotheses = true;
             bool newAss = false;
             foreach (Line line in frame)
@@ -217,11 +218,11 @@ namespace Natural_Deduction_Tool
     public class Line
     {
         public IFormula Item1 { get; set; }
-        public Node Item2 { get; set; }
+        public Interval Item2 { get; set; }
         public Annotation Item3 { get; set; }
-        public HashSet<IFormula> Facts { get {return Item2.ReturnFacts(); } }
+        public HashSet<IFormula> Facts { get { return Item2.ReturnFacts(); } }
 
-        public Line(IFormula form, Node node, Annotation anno)
+        public Line(IFormula form, Interval node, Annotation anno)
         {
             Item1 = form;
             Item2 = node;
@@ -229,25 +230,25 @@ namespace Natural_Deduction_Tool
         }
     }
 
-    public class Node
+    public class Interval
     {
-        public Node parent;
+        public Interval parent;
         public List<IFormula> facts;
 
-        public Node()
+        public Interval()
         {
             facts = new List<IFormula>();
         }
 
-        public Node(Node par)
+        public Interval(Interval par)
         {
             facts = new List<IFormula>();
             parent = par;
         }
 
-        public Node Clone()
+        public Interval Clone()
         {
-            Node output = new Node();
+            Interval output = new Interval();
             foreach (IFormula fact in facts)
             {
                 output.facts.Add(fact);
@@ -256,9 +257,9 @@ namespace Natural_Deduction_Tool
             return output;
         }
 
-        public Node Clone(Node par)
+        public Interval Clone(Interval par)
         {
-            Node output = new Node();
+            Interval output = new Interval();
             foreach (IFormula fact in facts)
             {
                 output.facts.Add(fact);
@@ -272,7 +273,7 @@ namespace Natural_Deduction_Tool
         /// </summary>
         /// <param name="node"></param>
         /// <returns></returns>
-        public bool ThisOrParent(Node node)
+        public bool ThisOrParent(Interval node)
         {
             if (this == node)
             {
@@ -294,7 +295,7 @@ namespace Natural_Deduction_Tool
         public HashSet<IFormula> ReturnFacts()
         {
             HashSet<IFormula> output = new HashSet<IFormula>();
-            Node currentNode = this;
+            Interval currentNode = this;
             while (currentNode.parent != null)
             {
                 foreach (IFormula fact in currentNode.facts)
