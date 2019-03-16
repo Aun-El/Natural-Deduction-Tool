@@ -9,10 +9,27 @@ namespace Natural_Deduction_Tool
     public class Goal
     {
         public IFormula goal;
+        public List<Goal> subGoals;
+        public Goal parent;
+        bool halfComplete;
+        bool complete;
+
+        public Goal(IFormula form, Goal par)
+        {
+            goal = form;
+            parent = par;
+            subGoals = new List<Goal>();
+            halfComplete = false;
+            complete = false;
+        }
 
         public Goal(IFormula form)
         {
             goal = form;
+            parent = null;
+            subGoals = new List<Goal>();
+            halfComplete = false;
+            complete = false;
         }
 
         /// <summary>
@@ -40,17 +57,20 @@ namespace Natural_Deduction_Tool
                     Implication impl = subForm as Implication;
                     if (goal.Equals(impl.Consequent))
                     {
-                        Frame antFrame = new Goal(impl.Antecedent).Prove(frame);
+                        Frame antFrame = new Goal(impl.Antecedent, this).Prove(frame);
                         if (antFrame != null)
                         {
-                            if (facts.Contains(subForm))
+                            if (!facts.Contains(subForm))
                             {
                                 return Searcher.ApplyImplElim(antFrame, impl);
                             }
                             else
                             {
-                                Frame subGoalFrame = new Goal(subForm).Prove(antFrame);
-                                return Searcher.ApplyImplElim(subGoalFrame, impl);
+                                Frame subGoalFrame = new Goal(subForm, this).Prove(antFrame);
+                                if (subGoalFrame != null)
+                                {
+                                    return Searcher.ApplyImplElim(subGoalFrame, impl);
+                                }
                             }
                         }
                     }
@@ -60,21 +80,30 @@ namespace Natural_Deduction_Tool
                     Iff iff = subForm as Iff;
                     if (!iff.Left.Equals(iff.Right))
                     {
+                        //The iff is only useful if the left or right is known
+                        //If the left and right are the same, it does not add any new knowledge, and is not worth checking
                         if (goal.Equals(iff.Left))
                         {
                             if (facts.Contains(subForm))
                             {
-                                if (new Goal(iff.Right).Prove(frame) != null)
+                                Frame rightFrame = new Goal(iff.Right, this).Prove(frame);
+                                if (rightFrame != null)
                                 {
-                                    //Derive Right -> Left and apply ImplElim
+                                    Frame intermediate = Searcher.ApplyIffElim(rightFrame, iff, false);
+                                    return Searcher.ApplyImplElim(intermediate, intermediate.Last.Item1 as Implication);
                                 }
                             }
                             else
                             {
-                                //Derive the iff from what is known
-                                if (new Goal(iff.Right).Prove(frame) != null)
+                                Frame subGoalFrame = new Goal(iff, this).Prove(frame);
+                                if (subGoalFrame != null)
                                 {
-                                    //Derive Right -> Left and apply ImplElim
+                                    Frame rightFrame = new Goal(iff.Right, this).Prove(subGoalFrame);
+                                    if (rightFrame != null)
+                                    {
+                                        Frame intermediate = Searcher.ApplyIffElim(subGoalFrame, iff, false);
+                                        return Searcher.ApplyImplElim(intermediate, intermediate.Last.Item1 as Implication);
+                                    }
                                 }
                             }
                         }
@@ -82,17 +111,24 @@ namespace Natural_Deduction_Tool
                         {
                             if (facts.Contains(subForm))
                             {
-                                if (new Goal(iff.Left).Prove(frame) != null)
+                                Frame leftFrame = new Goal(iff.Left, this).Prove(frame);
+                                if (leftFrame != null)
                                 {
-                                    //Derive Left -> Right and apply ImplElim
+                                    Frame intermediate = Searcher.ApplyIffElim(leftFrame, iff, true);
+                                    return Searcher.ApplyImplElim(intermediate, intermediate.Last.Item1 as Implication);
                                 }
                             }
                             else
                             {
-                                //Derive the iff from what is known
-                                if (new Goal(iff.Left).Prove(frame) != null)
+                                Frame subGoalFrame = new Goal(iff, this).Prove(frame);
+                                if (subGoalFrame != null)
                                 {
-                                    //Derive Left -> Right and apply ImplElim
+                                    Frame leftFrame = new Goal(iff.Left, this).Prove(subGoalFrame);
+                                    if (leftFrame != null)
+                                    {
+                                        Frame intermediate = Searcher.ApplyIffElim(leftFrame, iff, true);
+                                        return Searcher.ApplyImplElim(intermediate, intermediate.Last.Item1 as Implication);
+                                    }
                                 }
                             }
                         }
@@ -106,14 +142,14 @@ namespace Natural_Deduction_Tool
                         if (disj.Right is Negation)
                         {
                             Negation neg = disj.Right as Negation;
-                            if (new Goal(neg.Formula).Prove(frame) != null)
+                            if (new Goal(neg.Formula, this).Prove(frame) != null)
                             {
                                 //Use disjElim
                             }
                         }
                         else
                         {
-                            if (new Goal(new Negation(disj.Right)).Prove(frame) != null)
+                            if (new Goal(new Negation(disj.Right), this).Prove(frame) != null)
                             {
                                 //Use disjElim
                             }
@@ -124,14 +160,14 @@ namespace Natural_Deduction_Tool
                         if (disj.Left is Negation)
                         {
                             Negation neg = disj.Left as Negation;
-                            if (new Goal(neg.Formula).Prove(frame) != null)
+                            if (new Goal(neg.Formula, this).Prove(frame) != null)
                             {
                                 //Use disjElim
                             }
                         }
                         else
                         {
-                            if (new Goal(new Negation(disj.Left)).Prove(frame) != null)
+                            if (new Goal(new Negation(disj.Left), this).Prove(frame) != null)
                             {
                                 //Use disjElim
                             }
@@ -175,72 +211,142 @@ namespace Natural_Deduction_Tool
                     Negation neg = subForm as Negation;
                     if (facts.Contains(subForm))
                     {
-                        //Assume the negated goal
-                        //Derive neg.formula (the non-negated version of the subForm)
-                        //Apply negIntro to get the goal
+                        if (neg.Formula is Negation && goal.Equals(neg.RemoveRedundantNegs()))
+                        {
+                            //Double negations can be dropped
+                            Negation neg2 = neg.Formula as Negation;
+                            Frame negFrame = frame;
+                            while (!goal.Equals(neg2.Formula))
+                            {
+                                neg = neg2.Formula as Negation;
+                                neg2 = neg.Formula as Negation;
+                                negFrame = Searcher.ApplyNegElim(negFrame, neg);
+                            }
+                            return Searcher.ApplyNegElim(frame, neg);
+                        }
+                        else
+                        {
+                            IFormula subGoal = new Negation(goal);
+                            Frame negFrame = frame.AddAss(subGoal);
+                            negFrame = new Goal(neg.Formula, this).Prove(negFrame);
+                            negFrame = Searcher.ApplyNegIntro(negFrame, subGoal, neg, neg.Formula);
+                            return Searcher.ApplyNegElim(negFrame, negFrame.Last.Item1 as Negation);
+                        }
                     }
                     else
                     {
                         //Derive the subForm from the superform
                         //Assume the negated goal
-                        //Derive neg.formula (the non-negated version of the subForm)
+                        //Show contradiction/derive neg.formula (the non-negated version of the subForm)
                         //Apply negIntro to get the goal
                     }
                 }
             }
 
-            //Can it be proven by (further) division into subgoals?
+            //If all else fails, blind search can be used.
+            //return Searcher.Prove(frame,goal);
+            return null;
+        }
+
+        private List<Goal> DeriveSubgoals()
+        {
+            //Negations or propVars cannot be further divided.
+
+            List<Goal> output = new List<Goal>();
+
             if (goal is Conjunction)
             {
                 Conjunction conj = goal as Conjunction;
-                Goal left = new Goal(conj.Left);
-                Goal right = new Goal(conj.Right);
-                if (left.Prove(frame) != null)
-                {
-                    return right.Prove(frame);
-                }
+                output.Add(new Goal(conj.Left, this));
+                output.Add(new Goal(conj.Right, this));
+                return output;
             }
             else if (goal is Disjunction)
             {
                 Disjunction disj = goal as Disjunction;
-                Goal left = new Goal(disj.Left);
-                Goal right = new Goal(disj.Right);
-                if (left.Prove(frame) != null)
-                {
-                    return left.Prove(frame);
-                }
-                if (right.Prove(frame) != null)
-                {
-                    return right.Prove(frame);
-                }
-            }
-            else if (goal is Negation)
-            {
-                //Dividing negations into subgoals would not help.
+                output.Add(new Goal(disj.Left, this));
+                output.Add(new Goal(disj.Right, this));
+                return output;
             }
             else if (goal is Implication)
             {
                 Implication impl = goal as Implication;
-                Goal right = new Goal(impl.Consequent);
-                Frame newFrame = frame.AddAss(impl.Antecedent);
-                newFrame = right.Prove(newFrame);
-                if(newFrame != null)
-                {
-                    return Searcher.ApplyImplIntro(newFrame,impl.Antecedent,impl.Consequent);
-                }
+                output.Add(new Goal(impl.Consequent, this));
+                return output;
             }
             else if (goal is Iff)
             {
                 Iff iff = goal as Iff;
-                Goal left = new Goal(new Implication(iff.Left, iff.Right));
-                Goal right = new Goal(new Implication(iff.Right, iff.Left));
-                if (left.Prove(frame) != null)
-                {
-                    return right.Prove(frame);
-                }
+                output.Add(new Goal(new Implication(iff.Left, iff.Right), this));
+                output.Add(new Goal(new Implication(iff.Right, iff.Left), this));
+                return output;
             }
 
             return null;
+        }
+
+        public void DeriveSubgoalTree()
+        {
+            Queue<Goal> goals = new Queue<Goal>();
+            goals.Enqueue(this);
+            while (goals.Any())
+            {
+                Goal current = goals.Dequeue();
+                foreach (Goal subgoal in current.DeriveSubgoals())
+                {
+                    subGoals.Add(subgoal);
+                    goals.Enqueue(subgoal);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Call this on a goal that has been met. It will automatically complete all subgoals and non-dual supergoals.
+        /// Dual supergoals will be half-completed instead, or full completed if they are already half-completed.
+        /// </summary>
+        /// <returns></returns>
+        public bool Complete()
+        {
+            if (goal is Conjunction)
+            {
+                if (halfComplete)
+                {
+                    complete = true;
+                }
+                else
+                {
+                    halfComplete = true;
+                }
+            }
+            else if (goal is Iff)
+            {
+                if (halfComplete)
+                {
+                    complete = true;
+                }
+                else
+                {
+                    halfComplete = true;
+                }
+            }
+            else
+            {
+                complete = true;
+            }
+
+            if (complete)
+            {
+                if (parent == null)
+                {
+                    return true;
+                }
+                else
+                {
+                    subGoals.Clear();
+                    return parent.Complete();
+                }
+            }
+            return false;
         }
     }
 }

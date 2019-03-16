@@ -51,7 +51,7 @@ namespace Natural_Deduction_Tool
         }
     }
 
-    class Negation : IFormula
+    public class Negation : IFormula
     {
         IFormula formula;
         public IFormula Formula { get { return formula; } }

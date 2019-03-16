@@ -41,7 +41,7 @@ namespace Natural_Deduction_Tool
 
                 if (validConcl)
                 {
-                    proofTxt.Text = Searcher.Prove(premises, conclusion);
+                    proofTxt.Text = Searcher.BidirectionalSearch(premises, conclusion);
                 }
             }
             else

@@ -10,15 +10,18 @@ namespace Natural_Deduction_Tool
     {
         public List<Line> frame;
         public Line Last { get { return frame.Last(); } }
+        public List<Frame> DerivedFrames;
 
         public Frame()
         {
             frame = new List<Line>();
+            DerivedFrames = new List<Frame>();
         }
 
         public Frame(List<IFormula> premises)
         {
             frame = new List<Line>();
+            DerivedFrames = new List<Frame>();
             Interval currentNode = new Interval();
             foreach (IFormula premise in premises)
             {
