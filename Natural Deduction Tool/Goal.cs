@@ -12,7 +12,7 @@ namespace Natural_Deduction_Tool
         public List<Goal> subGoals;
         public Goal parent;
         bool halfComplete;
-        bool complete;
+        public bool Completed { get; private set; }
 
         public Goal(IFormula form, Goal par)
         {
@@ -20,7 +20,7 @@ namespace Natural_Deduction_Tool
             parent = par;
             subGoals = new List<Goal>();
             halfComplete = false;
-            complete = false;
+            Completed = false;
         }
 
         public Goal(IFormula form)
@@ -29,7 +29,7 @@ namespace Natural_Deduction_Tool
             parent = null;
             subGoals = new List<Goal>();
             halfComplete = false;
-            complete = false;
+            Completed = false;
         }
 
         /// <summary>
@@ -292,10 +292,14 @@ namespace Natural_Deduction_Tool
             while (goals.Any())
             {
                 Goal current = goals.Dequeue();
-                foreach (Goal subgoal in current.DeriveSubgoals())
+                List<Goal> subgoals = current.DeriveSubgoals();
+                if (subgoals != null)
                 {
-                    subGoals.Add(subgoal);
-                    goals.Enqueue(subgoal);
+                    foreach (Goal subgoal in subgoals)
+                    {
+                        subGoals.Add(subgoal);
+                        goals.Enqueue(subgoal);
+                    }
                 }
             }
         }
@@ -307,22 +311,11 @@ namespace Natural_Deduction_Tool
         /// <returns></returns>
         public bool Complete()
         {
-            if (goal is Conjunction)
+            if (goal is Conjunction || goal is Iff)
             {
                 if (halfComplete)
                 {
-                    complete = true;
-                }
-                else
-                {
-                    halfComplete = true;
-                }
-            }
-            else if (goal is Iff)
-            {
-                if (halfComplete)
-                {
-                    complete = true;
+                    Completed = true;
                 }
                 else
                 {
@@ -331,10 +324,10 @@ namespace Natural_Deduction_Tool
             }
             else
             {
-                complete = true;
+                Completed = true;
             }
 
-            if (complete)
+            if (Completed)
             {
                 if (parent == null)
                 {

@@ -34,7 +34,7 @@ namespace Natural_Deduction_Tool
                     currentNode = new Node();
                 }*/
                 currentNode.facts.Add(premise);
-                frame.Add(new Line(premise, currentNode, new Annotation(new List<int>(), Rules.HYPO, false)));
+                frame.Add(new Line(premise, currentNode, new Annotation(Rules.HYPO)));
             }
         }
 
@@ -42,6 +42,23 @@ namespace Natural_Deduction_Tool
         {
             Frame output = new Frame();
             Interval newNode = new Interval(frame.Last().Item2);
+            Annotation anno = new Annotation(Rules.ASS);
+
+            foreach (Line line in frame)
+            {
+                //New formulas will only be true in their current hypothesis interval
+                //It is only necessary to keep a seperate fact list for the interval the new formula will be added to
+                output.frame.Add(new Line(line.Item1, line.Item2, line.Item3));
+            }
+            output.frame.Add(new Line(form, newNode, anno));
+            newNode.facts.Add(form);
+            return output;
+        }
+
+        public Frame AddAss(IFormula form, Interval interval)
+        {
+            Frame output = new Frame();
+            Interval newNode = new Interval(interval);
             Annotation anno = new Annotation(Rules.ASS);
 
             foreach (Line line in frame)
@@ -324,20 +341,34 @@ namespace Natural_Deduction_Tool
 
         public Annotation(List<int> lin, Rules rul, bool intr)
         {
-            lines = new List<int>();
-            rule = rul;
-            intro = intr;
-            foreach (int i in lin)
+            if (rul != Rules.ASS && rul != Rules.HYPO)
             {
-                lines.Add(i);
+                lines = new List<int>();
+                rule = rul;
+                intro = intr;
+                foreach (int i in lin)
+                {
+                    lines.Add(i);
+                }
+            }
+            else
+            {
+                throw new Exception("Tried making a non-assumption/premise annotation on an assumption/premise.");
             }
         }
 
         public Annotation(Rules rul)
         {
-            lines = new List<int>();
-            rule = rul;
-            intro = true;
+            if (rul == Rules.ASS || rul == Rules.HYPO)
+            {
+                lines = new List<int>();
+                rule = rul;
+                intro = true;
+            }
+            else
+            {
+                throw new Exception("Tried making an assumption/premise annotation on a non-assumption/premise.");
+            }
         }
 
         public override string ToString()
@@ -349,7 +380,7 @@ namespace Natural_Deduction_Tool
                     output.Append($"REI {lines[0]}");
                     break;
                 case Rules.HYPO:
-                    output.Append("Hypothesis");
+                    output.Append("Premise");
                     break;
                 case Rules.ASS:
                     output.Append("Assumption");

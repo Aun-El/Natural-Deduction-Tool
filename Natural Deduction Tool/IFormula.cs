@@ -10,7 +10,10 @@ namespace Natural_Deduction_Tool
     {
         string ToString();
         bool Equals(object e);
+        bool PossiblyTrue(Valuation valuation);
+        bool PossiblyUntrue(Valuation valuation);
         HashSet<IFormula> GetSubForms(HashSet<IFormula> set);
+        void Collect(ISet<string> set);
     }
 
     class PropVar : IFormula
@@ -26,6 +29,29 @@ namespace Natural_Deduction_Tool
         {
             set.Add(this);
             return set;
+        }
+
+        public bool PossiblyTrue(Valuation val)
+        {
+            if (val.ContainsVar(name))
+            {
+                return val.GiveVal(name);
+            }
+            return true;
+        }
+
+        public bool PossiblyUntrue(Valuation val)
+        {
+            if (val.ContainsVar(name))
+            {
+                return !val.GiveVal(name);
+            }
+            return true;
+        }
+
+        public void Collect(ISet<string> set)
+        {
+            set.Add(name);
         }
 
         public override bool Equals(object obj)
@@ -66,6 +92,21 @@ namespace Natural_Deduction_Tool
             set.Add(this);
             formula.GetSubForms(set);
             return set;
+        }
+
+        public bool PossiblyTrue(Valuation val)
+        {
+            return formula.PossiblyUntrue(val);
+        }
+
+        public bool PossiblyUntrue(Valuation val)
+        {
+            return formula.PossiblyTrue(val);
+        }
+
+        public void Collect(ISet<string> set)
+        {
+            formula.Collect(set);
         }
 
         public IFormula RemoveRedundantNegs()
@@ -130,6 +171,22 @@ namespace Natural_Deduction_Tool
             return set;
         }
 
+        public bool PossiblyTrue(Valuation val)
+        {
+            return left.PossiblyTrue(val) || right.PossiblyTrue(val);
+        }
+
+        public bool PossiblyUntrue(Valuation val)
+        {
+            return left.PossiblyUntrue(val) && right.PossiblyUntrue(val);
+        }
+
+        public void Collect(ISet<string> set)
+        {
+            left.Collect(set);
+            right.Collect(set);
+        }
+
         public override bool Equals(object obj)
         {
             if ((obj == null) || !GetType().Equals(obj.GetType()))
@@ -164,6 +221,16 @@ namespace Natural_Deduction_Tool
             left = l;
             right = r;
         }
+        
+        public static Conjunction Conjoin(List<IFormula> forms)
+        {
+            Conjunction output = new Conjunction(forms[0], forms[1]);
+            for (int i = 2; i < forms.Count; i++)
+            {
+                output = new Conjunction(output, forms[i]);
+            }
+            return output;
+        }
 
         public HashSet<IFormula> GetSubForms(HashSet<IFormula> set)
         {
@@ -171,6 +238,22 @@ namespace Natural_Deduction_Tool
             left.GetSubForms(set);
             right.GetSubForms(set);
             return set;
+        }
+
+        public bool PossiblyTrue(Valuation val)
+        {
+            return left.PossiblyTrue(val) && right.PossiblyTrue(val);
+        }
+
+        public bool PossiblyUntrue(Valuation val)
+        {
+            return left.PossiblyUntrue(val) || right.PossiblyUntrue(val);
+        }
+
+        public void Collect(ISet<string> set)
+        {
+            left.Collect(set);
+            right.Collect(set);
         }
 
         public override bool Equals(object obj)
@@ -216,6 +299,22 @@ namespace Natural_Deduction_Tool
             return set;
         }
 
+        public bool PossiblyTrue(Valuation val)
+        {
+            return left.PossiblyUntrue(val) || right.PossiblyTrue(val);
+        }
+
+        public bool PossiblyUntrue(Valuation val)
+        {
+            return left.PossiblyTrue(val) && right.PossiblyUntrue(val);
+        }
+
+        public void Collect(ISet<string> set)
+        {
+            left.Collect(set);
+            right.Collect(set);
+        }
+
         public override bool Equals(object obj)
         {
             if ((obj == null) || !GetType().Equals(obj.GetType()))
@@ -257,6 +356,22 @@ namespace Natural_Deduction_Tool
             left.GetSubForms(set);
             right.GetSubForms(set);
             return set;
+        }
+
+        public bool PossiblyTrue(Valuation val)
+        {
+            return (left.PossiblyTrue(val) && right.PossiblyTrue(val)) || (left.PossiblyUntrue(val) && right.PossiblyUntrue(val));
+        }
+
+        public bool PossiblyUntrue(Valuation val)
+        {
+            return (left.PossiblyUntrue(val) && right.PossiblyTrue(val)) || (left.PossiblyTrue(val) && right.PossiblyUntrue(val));
+        }
+
+        public void Collect(ISet<string> set)
+        {
+            left.Collect(set);
+            right.Collect(set);
         }
 
         public override bool Equals(object obj)
