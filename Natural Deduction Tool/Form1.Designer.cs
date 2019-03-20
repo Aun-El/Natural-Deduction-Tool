@@ -28,23 +28,13 @@
         /// </summary>
         private void InitializeComponent()
         {
-            this.proofTxt = new System.Windows.Forms.TextBox();
             this.premiseTxt = new System.Windows.Forms.TextBox();
             this.conclTxt = new System.Windows.Forms.TextBox();
             this.premLabel = new System.Windows.Forms.Label();
             this.conclLabel = new System.Windows.Forms.Label();
             this.proveBut = new System.Windows.Forms.Button();
+            this.proofTxt = new Natural_Deduction_Tool.ReadOnlyTextBox();
             this.SuspendLayout();
-            // 
-            // proofTxt
-            // 
-            this.proofTxt.Enabled = false;
-            this.proofTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 10.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.proofTxt.Location = new System.Drawing.Point(196, 99);
-            this.proofTxt.Multiline = true;
-            this.proofTxt.Name = "proofTxt";
-            this.proofTxt.Size = new System.Drawing.Size(639, 564);
-            this.proofTxt.TabIndex = 6;
             // 
             // premiseTxt
             // 
@@ -88,6 +78,18 @@
             this.proveBut.UseVisualStyleBackColor = true;
             this.proveBut.Click += new System.EventHandler(this.proveBut_Click);
             // 
+            // proofTxt
+            // 
+            this.proofTxt.Cursor = System.Windows.Forms.Cursors.IBeam;
+            this.proofTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 10.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.proofTxt.Location = new System.Drawing.Point(196, 99);
+            this.proofTxt.Multiline = true;
+            this.proofTxt.Name = "proofTxt";
+            this.proofTxt.ReadOnly = true;
+            this.proofTxt.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.proofTxt.Size = new System.Drawing.Size(639, 564);
+            this.proofTxt.TabIndex = 6;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
@@ -100,14 +102,14 @@
             this.Controls.Add(this.premiseTxt);
             this.Controls.Add(this.proofTxt);
             this.Name = "Form1";
-            this.Text = "Form1";
+            this.Text = "Natural Deduction Solver";
             this.ResumeLayout(false);
             this.PerformLayout();
 
         }
 
         #endregion
-        private System.Windows.Forms.TextBox proofTxt;
+        private ReadOnlyTextBox proofTxt;
         private System.Windows.Forms.TextBox premiseTxt;
         private System.Windows.Forms.TextBox conclTxt;
         private System.Windows.Forms.Label premLabel;

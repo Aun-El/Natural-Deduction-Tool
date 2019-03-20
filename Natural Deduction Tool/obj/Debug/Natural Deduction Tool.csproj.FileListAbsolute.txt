@@ -12,9 +12,9 @@ C:\Users\Christiaan\Desktop\Natural-Deduction-Tool\Natural Deduction Tool\bin\De
 C:\Users\Christiaan\Desktop\Natural-Deduction-Tool\Natural Deduction Tool\bin\Debug\Natural Deduction Tool.exe
 C:\Users\Christiaan\Desktop\Natural-Deduction-Tool\Natural Deduction Tool\bin\Debug\Natural Deduction Tool.pdb
 C:\Users\Christiaan\Desktop\Natural-Deduction-Tool\Natural Deduction Tool\obj\Debug\Natural Deduction Tool.csprojResolveAssemblyReference.cache
-C:\Users\Christiaan\Desktop\Natural-Deduction-Tool\Natural Deduction Tool\obj\Debug\Natural_Deduction_Tool.Form1.resources
 C:\Users\Christiaan\Desktop\Natural-Deduction-Tool\Natural Deduction Tool\obj\Debug\Natural_Deduction_Tool.Properties.Resources.resources
 C:\Users\Christiaan\Desktop\Natural-Deduction-Tool\Natural Deduction Tool\obj\Debug\Natural Deduction Tool.csproj.GenerateResource.Cache
 C:\Users\Christiaan\Desktop\Natural-Deduction-Tool\Natural Deduction Tool\obj\Debug\Natural Deduction Tool.csproj.CoreCompileInputs.cache
 C:\Users\Christiaan\Desktop\Natural-Deduction-Tool\Natural Deduction Tool\obj\Debug\Natural Deduction Tool.exe
 C:\Users\Christiaan\Desktop\Natural-Deduction-Tool\Natural Deduction Tool\obj\Debug\Natural Deduction Tool.pdb
+C:\Users\Christiaan\Desktop\Natural-Deduction-Tool\Natural Deduction Tool\obj\Debug\Natural_Deduction_Tool.Form1.resources

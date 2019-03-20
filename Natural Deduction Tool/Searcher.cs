@@ -1,39 +1,37 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 
 namespace Natural_Deduction_Tool
 {
     public class Searcher
     {
-        public static Queue<Frame> Fringe { get; private set; }
-        public static Queue<Frame> NextFringe { get; private set; }
-        public static Queue<Goal> GoalFringe;
-        public static Queue<Goal> NextGoalFringe;
-        public static Frame Init;
-
-        public static HashSet<IFormula> SubForms { get; private set; }
-        public static HashSet<IFormula> PremiseSubForms { get; private set; }
-        public static HashSet<HashSet<IFormula>> ClosedList { get; private set; }
+        public static List<Derivation> Derivations { get; set; }
+        public static Goal goal;
+        public static HashSet<IFormula> facts;
+        private static int depth;
 
         public static List<Derivation> DeriveWithElim(List<IFormula> premises, HashSet<IFormula> facts)
         {
-            Queue<Derivation> derivQueue = new Queue<Derivation>();
+
+            PriorityQueue derivQueue = new PriorityQueue();
             List<Derivation> output = new List<Derivation>();
             List<Implication> impls = new List<Implication>();
             List<Disjunction> disjs = new List<Disjunction>();
-            List<IFormula> hypoOrig = new List<IFormula>();
             foreach (IFormula premise in premises)
             {
                 facts.Add(premise);
                 Derivation newDeriv = new Derivation(premise, new Origin(Rules.HYPO));
+                derivQueue.Enqueue(newDeriv, output);
                 output.Add(newDeriv);
-                derivQueue.Enqueue(newDeriv);
                 if (premise is Implication)
                 {
                     impls.Add(premise as Implication);
+                    MatchWithMPGoals(premise as Implication);
                 }
                 else if (premise is Disjunction)
                 {
@@ -57,9 +55,12 @@ namespace Natural_Deduction_Tool
                         if (neg.Formula is Negation)
                         {
                             Negation negForm = neg.Formula as Negation;
+                            List<IFormula> orig = new List<IFormula>() { neg };
+                            List<Derivation> derivPar = new List<Derivation>() { current };
+                            Derivation newDeriv = new Derivation(negForm.Formula, new Origin(orig, Rules.NEG, derivPar));
+                            derivQueue.Enqueue(newDeriv, output);
                             if (!facts.Contains(negForm.Formula))
                             {
-                                List<IFormula> orig = new List<IFormula>() { neg };
                                 facts.Add(negForm.Formula);
                                 if (negForm.Formula is Implication)
                                 {
@@ -69,10 +70,6 @@ namespace Natural_Deduction_Tool
                                 {
                                     disjs.Add(negForm.Formula as Disjunction);
                                 }
-                                List<Derivation> derivPar = new List<Derivation>() { current };
-                                Derivation newDeriv = new Derivation(negForm.Formula, new Origin(orig, Rules.NEG, derivPar));
-                                output.Add(newDeriv);
-                                derivQueue.Enqueue(newDeriv);
                             }
                         }
                     }
@@ -80,6 +77,12 @@ namespace Natural_Deduction_Tool
                     {
                         Conjunction conj = current.Form as Conjunction;
                         List<IFormula> orig = new List<IFormula>() { conj };
+                        List<Derivation> derivPar = new List<Derivation>() { current };
+                        Derivation newLeftDeriv = new Derivation(conj.Left, new Origin(orig, Rules.AND, derivPar));
+                        derivQueue.Enqueue(newLeftDeriv, output);
+                        Derivation newRightDeriv = new Derivation(conj.Right, new Origin(orig, Rules.AND, derivPar));
+                        derivQueue.Enqueue(newRightDeriv, output);
+
                         if (!facts.Contains(conj.Left))
                         {
                             facts.Add(conj.Left);
@@ -91,10 +94,6 @@ namespace Natural_Deduction_Tool
                             {
                                 disjs.Add(conj.Left as Disjunction);
                             }
-                            List<Derivation> derivPar = new List<Derivation>() { current };
-                            Derivation newDeriv = new Derivation(conj.Left, new Origin(orig, Rules.AND, derivPar));
-                            output.Add(newDeriv);
-                            derivQueue.Enqueue(newDeriv);
                         }
                         if (!facts.Contains(conj.Right))
                         {
@@ -107,10 +106,6 @@ namespace Natural_Deduction_Tool
                             {
                                 disjs.Add(conj.Right as Disjunction);
                             }
-                            List<Derivation> derivPar = new List<Derivation>() { current };
-                            Derivation newDeriv = new Derivation(conj.Right, new Origin(orig, Rules.AND, derivPar));
-                            output.Add(newDeriv);
-                            derivQueue.Enqueue(newDeriv);
                         }
                     }
                     else if (current.Form is Iff)
@@ -119,61 +114,53 @@ namespace Natural_Deduction_Tool
                         List<IFormula> orig = new List<IFormula>() { iff };
                         Implication left = new Implication(iff.Left, iff.Right);
                         Implication right = new Implication(iff.Right, iff.Left);
+                        List<Derivation> derivPar = new List<Derivation>() { current };
+                        Derivation newLeftDeriv = new Derivation(left, new Origin(orig, Rules.BI, derivPar));
+                        Derivation newRightDeriv = new Derivation(right, new Origin(orig, Rules.BI, derivPar));
+                        derivQueue.Enqueue(newLeftDeriv, output);
+                        derivQueue.Enqueue(newRightDeriv, output);
                         if (!facts.Contains(left))
                         {
                             facts.Add(left);
                             impls.Add(left);
-                            List<Derivation> derivPar = new List<Derivation>() { current };
-                            Derivation newDeriv = new Derivation(left, new Origin(orig, Rules.BI, derivPar));
-                            output.Add(newDeriv);
-                            derivQueue.Enqueue(newDeriv);
                         }
                         if (!facts.Contains(right))
                         {
                             facts.Add(right);
                             impls.Add(right);
-                            List<Derivation> derivPar = new List<Derivation>() { current };
-                            Derivation newDeriv = new Derivation(right, new Origin(orig, Rules.BI, derivPar));
-                            output.Add(newDeriv);
-                            derivQueue.Enqueue(newDeriv);
                         }
                     }
                     else if (current.Form is Implication)
                     {
                         Implication impl = current.Form as Implication;
-                        if (facts.Contains(impl.Antecedent) && !facts.Contains(impl.Consequent))
+                        if (facts.Contains(impl.Antecedent))
                         {
                             List<IFormula> orig = new List<IFormula>() { impl, impl.Antecedent };
-                            facts.Add(impl.Consequent);
-                            if (impl.Consequent is Implication)
-                            {
-                                impls.Add(impl.Consequent as Implication);
-                            }
-                            else if (impl.Consequent is Disjunction)
-                            {
-                                disjs.Add(impl.Consequent as Disjunction);
-                            }
                             List<Derivation> derivPar = new List<Derivation>() { current };
+                            bool anteFound = false;
                             foreach (Derivation deriv in output)
                             {
                                 if (deriv.Form.Equals(impl.Antecedent))
                                 {
+                                    anteFound = true;
                                     derivPar.Add(deriv);
                                     break;
                                 }
                             }
+                            if (!anteFound)
+                            {
+                                foreach (Derivation deriv in derivQueue.Queue)
+                                {
+                                    if (deriv.Form.Equals(impl.Antecedent))
+                                    {
+                                        derivPar.Add(deriv);
+                                        break;
+                                    }
+                                }
+                            }
                             Derivation newDeriv = new Derivation(impl.Consequent, new Origin(orig, Rules.IMP, derivPar));
-                            output.Add(newDeriv);
-                            derivQueue.Enqueue(newDeriv);
-                        }
-                    }
-
-                    List<Implication> newImpls = new List<Implication>();
-                    foreach (Implication impl in impls)
-                    {
-                        if (!facts.Contains(impl.Consequent))
-                        {
-                            if (current.Form.Equals(impl.Antecedent))
+                            derivQueue.Enqueue(newDeriv, output);
+                            if (!facts.Contains(impl.Consequent))
                             {
                                 facts.Add(impl.Consequent);
                                 if (impl.Consequent is Implication)
@@ -184,9 +171,51 @@ namespace Natural_Deduction_Tool
                                 {
                                     disjs.Add(impl.Consequent as Disjunction);
                                 }
-                                List<IFormula> orig = new List<IFormula>() { impl, current.Form };
-                                List<Derivation> derivPar = new List<Derivation>() { current };
-                                foreach (Derivation deriv in output)
+                            }
+                        }
+                    }
+
+                    if (current.Origin.rule != Rules.HYPO && current.Origin.rule != Rules.ASS)
+                    {
+                        if(current.Form is Implication)
+                        {
+                            MatchWithMPGoals(current.Form as Implication);
+                        }
+                        output.Add(current);
+                    }
+
+                    List<Implication> newImpls = new List<Implication>();
+                    foreach (Implication impl in impls)
+                    {
+                        if (current.Form.Equals(impl.Antecedent))
+                        {
+                            if (!facts.Contains(impl.Consequent))
+                            {
+                                facts.Add(impl.Consequent);
+                                if (impl.Consequent is Implication)
+                                {
+                                    impls.Add(impl.Consequent as Implication);
+                                }
+                                else if (impl.Consequent is Disjunction)
+                                {
+                                    disjs.Add(impl.Consequent as Disjunction);
+                                }
+                            }
+                            List<IFormula> orig = new List<IFormula>() { impl, current.Form };
+                            List<Derivation> derivPar = new List<Derivation>() { current };
+                            bool anteFound = false;
+                            foreach (Derivation deriv in output)
+                            {
+                                if (deriv.Form.Equals(impl.Antecedent))
+                                {
+                                    anteFound = true;
+                                    derivPar.Add(deriv);
+                                    break;
+                                }
+                            }
+                            if (!anteFound)
+                            {
+                                foreach (Derivation deriv in derivQueue.Queue)
                                 {
                                     if (deriv.Form.Equals(impl.Antecedent))
                                     {
@@ -194,14 +223,13 @@ namespace Natural_Deduction_Tool
                                         break;
                                     }
                                 }
-                                Derivation newDeriv = new Derivation(impl.Consequent, new Origin(orig, Rules.IMP, derivPar));
-                                output.Add(newDeriv);
-                                derivQueue.Enqueue(newDeriv);
                             }
-                            else
-                            {
-                                newImpls.Add(impl);
-                            }
+                            Derivation newDeriv = new Derivation(impl.Consequent, new Origin(orig, Rules.IMP, derivPar));
+                            derivQueue.Enqueue(newDeriv, output);
+                        }
+                        else
+                        {
+                            newImpls.Add(impl);
                         }
                     }
                     impls = newImpls;
@@ -224,30 +252,57 @@ namespace Natural_Deduction_Tool
                 List<Derivation> disjDerivs = new List<Derivation>();
                 foreach (Disjunction disj in disjs)
                 {
-                    disjDerivs = disjDerivs.Concat(DeriveWithDisjElim(disj, facts, impls, disjs)).ToList();
+                    disjDerivs = disjDerivs.Concat(DeriveWithDisjElim(disj, facts, impls, disjs, output)).ToList();
+                    if (disjDerivs.Any())
+                    {
+                        disjs.Remove(disj);
+                        break;
+                    }
                 }
                 foreach (Derivation deriv in disjDerivs)
                 {
-                    disjDeriv = true;
-                    facts.Add(deriv.Form);
-                    output.Add(deriv);
-                    derivQueue.Enqueue(deriv);
+                    if (!facts.Contains(deriv.Form))
+                    {
+                        disjDeriv = true;
+                        facts.Add(deriv.Form);
+                        derivQueue.Enqueue(deriv, output);
+                    }
+                    else
+                    {
+                        for (int i = 0; i < output.Count; i++)
+                        {
+                            if (output[i].Form.Equals(deriv.Form) && output[i].Length > deriv.Length)
+                            {
+                                Derivation oldParent = output[i];
+                                output.RemoveAt(i);
+                                output.Insert(i, deriv);
+                                foreach (Derivation childDeriv in output)
+                                {
+                                    if (childDeriv.Origin.parents != null && childDeriv.Origin.parents.Contains(oldParent))
+                                    {
+                                        childDeriv.ReplaceParent(deriv);
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
                 }
             }
 
             return output;
         }
 
-        public static List<Derivation> DeriveWithElim(List<IFormula> premises, HashSet<IFormula> facts, List<Implication> impls, List<Disjunction> disjs)
+        public static List<Derivation> DeriveWithElim(List<IFormula> premises, HashSet<IFormula> facts, List<Implication> impls, List<Disjunction> disjs, List<Derivation> derivs)
         {
             List<Derivation> output = new List<Derivation>();
-            List<IFormula> hypoOrig = new List<IFormula>();
-            Queue<Derivation> derivQueue = new Queue<Derivation>();
+            PriorityQueue derivQueue = new PriorityQueue();
             foreach (IFormula premise in premises)
             {
                 facts.Add(premise);
-                Derivation newDeriv = new Derivation(premise, new Origin(Rules.ASS));
-                derivQueue.Enqueue(newDeriv);
+                Derivation newDeriv = new Derivation(premise, new Origin(Rules.ASS, depth));
+                derivQueue.Enqueue(newDeriv, output);
+                derivs.Add(newDeriv);
                 output.Add(newDeriv);
                 if (premise is Implication)
                 {
@@ -275,9 +330,12 @@ namespace Natural_Deduction_Tool
                         if (neg.Formula is Negation)
                         {
                             Negation negForm = neg.Formula as Negation;
+                            List<IFormula> orig = new List<IFormula>() { neg };
+                            List<Derivation> derivPar = new List<Derivation>() { current };
+                            Derivation newDeriv = new Derivation(negForm.Formula, new Origin(orig, Rules.NEG, derivPar));
+                            derivQueue.Enqueue(newDeriv, output);
                             if (!facts.Contains(negForm.Formula))
                             {
-                                List<IFormula> orig = new List<IFormula>() { neg };
                                 facts.Add(negForm.Formula);
                                 if (negForm.Formula is Implication)
                                 {
@@ -287,10 +345,6 @@ namespace Natural_Deduction_Tool
                                 {
                                     disjs.Add(negForm.Formula as Disjunction);
                                 }
-                                List<Derivation> derivPar = new List<Derivation>() { current };
-                                Derivation newDeriv = new Derivation(negForm.Formula, new Origin(orig, Rules.NEG, derivPar));
-                                output.Add(newDeriv);
-                                derivQueue.Enqueue(newDeriv);
                             }
                         }
                     }
@@ -298,6 +352,12 @@ namespace Natural_Deduction_Tool
                     {
                         Conjunction conj = current.Form as Conjunction;
                         List<IFormula> orig = new List<IFormula>() { conj };
+                        List<Derivation> derivPar = new List<Derivation>() { current };
+                        Derivation newLeftDeriv = new Derivation(conj.Left, new Origin(orig, Rules.AND, derivPar));
+                        derivQueue.Enqueue(newLeftDeriv, output);
+                        Derivation newRightDeriv = new Derivation(conj.Right, new Origin(orig, Rules.AND, derivPar));
+                        derivQueue.Enqueue(newRightDeriv, output);
+
                         if (!facts.Contains(conj.Left))
                         {
                             facts.Add(conj.Left);
@@ -309,10 +369,6 @@ namespace Natural_Deduction_Tool
                             {
                                 disjs.Add(conj.Left as Disjunction);
                             }
-                            List<Derivation> derivPar = new List<Derivation>() { current };
-                            Derivation newDeriv = new Derivation(conj.Left, new Origin(orig, Rules.AND, derivPar));
-                            output.Add(newDeriv);
-                            derivQueue.Enqueue(newDeriv);
                         }
                         if (!facts.Contains(conj.Right))
                         {
@@ -325,10 +381,6 @@ namespace Natural_Deduction_Tool
                             {
                                 disjs.Add(conj.Right as Disjunction);
                             }
-                            List<Derivation> derivPar = new List<Derivation>() { current };
-                            Derivation newDeriv = new Derivation(conj.Right, new Origin(orig, Rules.AND, derivPar));
-                            output.Add(newDeriv);
-                            derivQueue.Enqueue(newDeriv);
                         }
                     }
                     else if (current.Form is Iff)
@@ -337,61 +389,53 @@ namespace Natural_Deduction_Tool
                         List<IFormula> orig = new List<IFormula>() { iff };
                         Implication left = new Implication(iff.Left, iff.Right);
                         Implication right = new Implication(iff.Right, iff.Left);
+                        List<Derivation> derivPar = new List<Derivation>() { current };
+                        Derivation newLeftDeriv = new Derivation(left, new Origin(orig, Rules.BI, derivPar));
+                        Derivation newRightDeriv = new Derivation(right, new Origin(orig, Rules.BI, derivPar));
+                        derivQueue.Enqueue(newLeftDeriv, output);
+                        derivQueue.Enqueue(newRightDeriv, output);
                         if (!facts.Contains(left))
                         {
                             facts.Add(left);
                             impls.Add(left);
-                            List<Derivation> derivPar = new List<Derivation>() { current };
-                            Derivation newDeriv = new Derivation(left, new Origin(orig, Rules.BI, derivPar));
-                            output.Add(newDeriv);
-                            derivQueue.Enqueue(newDeriv);
                         }
                         if (!facts.Contains(right))
                         {
                             facts.Add(right);
                             impls.Add(right);
-                            List<Derivation> derivPar = new List<Derivation>() { current };
-                            Derivation newDeriv = new Derivation(right, new Origin(orig, Rules.BI, derivPar));
-                            output.Add(newDeriv);
-                            derivQueue.Enqueue(newDeriv);
                         }
                     }
                     else if (current.Form is Implication)
                     {
                         Implication impl = current.Form as Implication;
-                        if (facts.Contains(impl.Antecedent) && !facts.Contains(impl.Consequent))
+                        if (facts.Contains(impl.Antecedent))
                         {
                             List<IFormula> orig = new List<IFormula>() { impl, impl.Antecedent };
-                            facts.Add(impl.Consequent);
-                            if (impl.Consequent is Implication)
-                            {
-                                impls.Add(impl.Consequent as Implication);
-                            }
-                            else if (impl.Consequent is Disjunction)
-                            {
-                                disjs.Add(impl.Consequent as Disjunction);
-                            }
                             List<Derivation> derivPar = new List<Derivation>() { current };
+                            bool anteFound = false;
                             foreach (Derivation deriv in output)
                             {
                                 if (deriv.Form.Equals(impl.Antecedent))
                                 {
+                                    anteFound = true;
                                     derivPar.Add(deriv);
                                     break;
                                 }
                             }
+                            if (!anteFound)
+                            {
+                                foreach (Derivation deriv in derivQueue.Queue)
+                                {
+                                    if (deriv.Form.Equals(impl.Antecedent))
+                                    {
+                                        derivPar.Add(deriv);
+                                        break;
+                                    }
+                                }
+                            }
                             Derivation newDeriv = new Derivation(impl.Consequent, new Origin(orig, Rules.IMP, derivPar));
-                            output.Add(newDeriv);
-                            derivQueue.Enqueue(newDeriv);
-                        }
-                    }
-
-                    List<Implication> newImpls = new List<Implication>();
-                    foreach (Implication impl in impls)
-                    {
-                        if (!facts.Contains(impl.Consequent))
-                        {
-                            if (current.Form.Equals(impl.Antecedent))
+                            derivQueue.Enqueue(newDeriv, output);
+                            if (!facts.Contains(impl.Consequent))
                             {
                                 facts.Add(impl.Consequent);
                                 if (impl.Consequent is Implication)
@@ -402,9 +446,36 @@ namespace Natural_Deduction_Tool
                                 {
                                     disjs.Add(impl.Consequent as Disjunction);
                                 }
-                                List<IFormula> orig = new List<IFormula>() { impl, current.Form };
-                                List<Derivation> derivPar = new List<Derivation>() { current };
-                                foreach (Derivation deriv in output)
+                            }
+                        }
+                    }
+
+                    if (current.Origin.rule != Rules.HYPO && current.Origin.rule != Rules.ASS)
+                    {
+                        derivs.Add(current);
+                        output.Add(current);
+                    }
+
+                    List<Implication> newImpls = new List<Implication>();
+                    foreach (Implication impl in impls)
+                    {
+                        if (current.Form.Equals(impl.Antecedent))
+                        {
+                            List<IFormula> orig = new List<IFormula>() { impl, current.Form };
+                            List<Derivation> derivPar = new List<Derivation>() { current };
+                            bool anteFound = false;
+                            foreach (Derivation deriv in output)
+                            {
+                                if (deriv.Form.Equals(impl.Antecedent))
+                                {
+                                    anteFound = true;
+                                    derivPar.Add(deriv);
+                                    break;
+                                }
+                            }
+                            if (!anteFound)
+                            {
+                                foreach (Derivation deriv in derivQueue.Queue)
                                 {
                                     if (deriv.Form.Equals(impl.Antecedent))
                                     {
@@ -412,14 +483,26 @@ namespace Natural_Deduction_Tool
                                         break;
                                     }
                                 }
-                                Derivation newDeriv = new Derivation(impl.Consequent, new Origin(orig, Rules.IMP, derivPar));
-                                output.Add(newDeriv);
-                                derivQueue.Enqueue(newDeriv);
                             }
-                            else
+                            Derivation newDeriv = new Derivation(impl.Consequent, new Origin(orig, Rules.IMP, derivPar));
+                            derivs.Add(newDeriv);
+                            derivQueue.Enqueue(newDeriv, output);
+                            if (!facts.Contains(impl.Consequent))
                             {
-                                newImpls.Add(impl);
+                                facts.Add(impl.Consequent);
+                                if (impl.Consequent is Implication)
+                                {
+                                    impls.Add(impl.Consequent as Implication);
+                                }
+                                else if (impl.Consequent is Disjunction)
+                                {
+                                    disjs.Add(impl.Consequent as Disjunction);
+                                }
                             }
+                        }
+                        else
+                        {
+                            newImpls.Add(impl);
                         }
                     }
                     impls = newImpls;
@@ -442,82 +525,136 @@ namespace Natural_Deduction_Tool
                 List<Derivation> disjDerivs = new List<Derivation>();
                 foreach (Disjunction disj in disjs)
                 {
-                    disjDerivs = disjDerivs.Concat(DeriveWithDisjElim(disj, facts, impls, disjs)).ToList();
+                    disjDerivs = disjDerivs.Concat(DeriveWithDisjElim(disj, facts, impls, disjs, output)).ToList();
+                    if (disjDerivs.Any())
+                    {
+                        disjs.Remove(disj);
+                        break;
+                    }
                 }
                 foreach (Derivation deriv in disjDerivs)
                 {
-                    disjDeriv = true;
-                    facts.Add(deriv.Form);
-                    output.Add(deriv);
-                    derivQueue.Enqueue(deriv);
+                    if (!facts.Contains(deriv.Form))
+                    {
+                        disjDeriv = true;
+                        facts.Add(deriv.Form);
+                        derivQueue.Enqueue(deriv, output);
+                    }
+                    else
+                    {
+                        for (int i = 0; i < output.Count; i++)
+                        {
+                            if (output[i].Form.Equals(deriv.Form) && output[i].Length > deriv.Length)
+                            {
+                                Derivation oldParent = output[i];
+                                output.RemoveAt(i);
+                                output.Insert(i, deriv);
+                                foreach (Derivation childDeriv in output)
+                                {
+                                    if (childDeriv.Origin.parents.Contains(oldParent))
+                                    {
+                                        childDeriv.ReplaceParent(deriv);
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                    }
                 }
             }
 
             return output;
         }
 
-        private static List<Derivation> DeriveWithDisjElim(Disjunction disj, HashSet<IFormula> facts, List<Implication> impls, List<Disjunction> disjs)
+        private static List<Derivation> DeriveWithDisjElim(Disjunction disj, HashSet<IFormula> facts, List<Implication> impls, List<Disjunction> disjs, List<Derivation> derivs)
         {
+            depth++;
             List<Derivation> output = new List<Derivation>();
 
             HashSet<IFormula> leftFacts = new HashSet<IFormula> { disj.Left };
-            List<IFormula> leftList = new List<IFormula>() { disj.Left };
-            List<Implication> leftImpls = new List<Implication>();
-            foreach (Implication impl in impls)
-            {
-                leftImpls.Add(impl);
-            }
-            List<Disjunction> leftDisjs = new List<Disjunction>();
-            foreach (Disjunction newDisj in disjs)
-            {
-                leftDisjs.Add(newDisj);
-            }
-            List<Derivation> left = DeriveWithElim(leftList, leftFacts, leftImpls, leftDisjs);
-
             HashSet<IFormula> rightFacts = new HashSet<IFormula> { disj.Right };
-            List<IFormula> rightList = new List<IFormula>() { disj.Right };
+            foreach (IFormula fact in facts)
+            {
+                leftFacts.Add(fact);
+                rightFacts.Add(fact);
+            }
+            List<Implication> leftImpls = new List<Implication>();
             List<Implication> rightImpls = new List<Implication>();
             foreach (Implication impl in impls)
             {
+                leftImpls.Add(impl);
                 rightImpls.Add(impl);
             }
+            List<Disjunction> leftDisjs = new List<Disjunction>();
             List<Disjunction> rightDisjs = new List<Disjunction>();
             foreach (Disjunction newDisj in disjs)
             {
+                leftDisjs.Add(newDisj);
                 rightDisjs.Add(newDisj);
             }
-            List<Derivation> right = DeriveWithElim(rightList, rightFacts, rightImpls, rightDisjs);
-
-            List<IFormula> orig = new List<IFormula>() { disj };
-            for (int i = 0; i < left.Count; i++)
+            List<Derivation> leftDerivs = new List<Derivation>();
+            List<Derivation> rightDerivs = new List<Derivation>();
+            foreach (Derivation deriv in derivs)
             {
-                for (int j = 0; j < right.Count; j++)
+                leftDerivs.Add(deriv);
+                rightDerivs.Add(deriv);
+            }
+
+            List<IFormula> leftList = new List<IFormula>() { disj.Left };
+            List<Derivation> left = DeriveWithElim(leftList, leftFacts, leftImpls, leftDisjs, leftDerivs);
+
+            List<Derivation> right = null;
+            if (disj.Left.Equals(disj.Right))
+            {
+                right = left;
+                List<IFormula> orig = new List<IFormula>() { disj };
+                foreach (Derivation deriv in left)
                 {
-                    if (left[i].Form.Equals(right[j].Form))
+                    List<Derivation> parDeriv = new List<Derivation>() { deriv };
+                    output.Add(new Derivation(deriv.Form, new Origin(orig, Rules.OR, parDeriv)));
+                }
+
+            }
+            else
+            {
+                List<IFormula> rightList = new List<IFormula>() { disj.Right };
+                right = DeriveWithElim(rightList, rightFacts, rightImpls, rightDisjs, rightDerivs);
+                List<IFormula> orig = new List<IFormula>() { disj };
+                for (int i = 0; i < left.Count; i++)
+                {
+                    for (int j = 0; j < right.Count; j++)
                     {
-                        List<Derivation> parDeriv = new List<Derivation>() { left[i], right[j] };
-                        output.Add(new Derivation(left[i].Form, new Origin(orig, Rules.OR, parDeriv)));
+                        if (left[i].Form.Equals(right[j].Form))
+                        {
+                            List<Derivation> parDeriv = new List<Derivation>() { left[i], right[j] };
+                            output.Add(new Derivation(left[i].Form, new Origin(orig, Rules.OR, parDeriv)));
+                        }
                     }
                 }
             }
 
+
+
+            depth--;
             return output;
         }
 
         public static string Prove(List<IFormula> premises, IFormula conclusion)
         {
+            depth = 0;
+            facts = new HashSet<IFormula>();
+
             //Step 1: (Happens in Form1) Check if the premises are UNSAT. If so, go to 2. Else, go to 3.
 
             //Step 2: Derive conclusion from UNSAT premises
 
             //Step 3: Derive full subgoal tree, derive all possible derivations from premises
 
-            HashSet<IFormula> facts = new HashSet<IFormula>();
-            List<Derivation> derivations = DeriveWithElim(premises, facts);
-
-            Goal goal = new Goal(conclusion);
+            goal = new Goal(conclusion);
 
             goal.DeriveSubgoalTree();
+
+            Derivations = DeriveWithElim(premises, facts);
 
             //Step 4: Check if derivations satisfy goal
 
@@ -526,13 +663,20 @@ namespace Natural_Deduction_Tool
             while (goalQueue.Any())
             {
                 Goal current = goalQueue.Dequeue();
-                foreach (Derivation deriv in derivations)
+                foreach (Derivation deriv in Derivations)
                 {
                     if (MatchGoal(deriv.Form, current))
                     {
                         Frame output = new Frame(premises);
-                        output = MakeFrame(output, derivations, goal);
+                        output = MakeFrame(output, Derivations, goal);
                         return output.ToString();
+                    }
+                }
+                if (!current.Completed)
+                {
+                    foreach (Goal subgoal in current.subGoals)
+                    {
+                        goalQueue.Enqueue(subgoal);
                     }
                 }
             }
@@ -560,239 +704,6 @@ namespace Natural_Deduction_Tool
             return "I cannot prove this (yet).";
         }
 
-        public static string BidirectionalSearch(List<IFormula> premises, IFormula conclusion)
-        {
-            SubForms = conclusion.GetSubForms(new HashSet<IFormula>());
-            if (!premises.Any())
-            {
-                premises.Add(new PropVar("\u22a4"));
-            }
-            else
-            {
-                foreach (IFormula premise in premises)
-                {
-                    SubForms = premise.GetSubForms(SubForms);
-                    //PremiseSubForms = premise.GetSubForms(PremiseSubForms);
-                }
-            }
-
-            Init = new Frame(premises);
-            Goal goal = new Goal(conclusion);
-
-            Fringe = new Queue<Frame>();
-            NextFringe = new Queue<Frame>();
-            GoalFringe = new Queue<Goal>();
-            NextGoalFringe = new Queue<Goal>();
-            ClosedList = new HashSet<HashSet<IFormula>>();
-
-            Fringe.Enqueue(Init);
-            GoalFringe.Enqueue(goal);
-
-            while (true)
-            {
-                //Check if any frame matches a new subgoal
-                Queue<Frame> frames = new Queue<Frame>();
-                frames.Enqueue(Init);
-
-                while (frames.Any())
-                {
-                    Frame currentFrame = frames.Dequeue();
-                    /*foreach (Goal subgoal in GoalFringe)
-                    {
-                        if (MatchGoal(currentFrame, subgoal))
-                        {
-                            return MakeFrame(currentFrame, subgoal).ToString();
-                        }
-                    }*/
-                    foreach (Frame child in currentFrame.DerivedFrames)
-                    {
-                        frames.Enqueue(child);
-                    }
-                }
-
-                Queue<Goal> goals = new Queue<Goal>();
-                goals.Enqueue(goal);
-
-                //Check if any goal matches a new frame
-                while (goals.Any())
-                {
-                    Goal currentGoal = goals.Dequeue();
-                    /*foreach (Frame frame in Fringe)
-                    {
-                        if (MatchGoal(frame, currentGoal))
-                        {
-                            return MakeFrame(frame, currentGoal).ToString();
-                        }
-                    }*/
-                    foreach (Goal subgoal in currentGoal.subGoals)
-                    {
-                        goals.Enqueue(subgoal);
-                    }
-                }
-
-                //If no frame can be matched, generate new frames and subgoals
-
-                DeriveSubframes();
-                DeriveSubgoals();
-
-                Fringe = NextFringe;
-                GoalFringe = NextGoalFringe;
-                NextFringe = new Queue<Frame>();
-                NextGoalFringe = new Queue<Goal>();
-
-                if (!Fringe.Any() && !GoalFringe.Any())
-                {
-                    //There is nothing more to be done; it cannot be proven
-                    return "I cannot prove this (yet).";
-                }
-            }
-        }
-
-        /// <summary>
-        /// Tries to prove a conclusion from a set of premises.
-        /// </summary>
-        /// <param name="frame"></param>
-        /// <param name="conclusion"></param>
-        /// <returns></returns>
-        public static void DeriveSubframes()
-        {
-            while (Fringe.Any())
-            {
-                Frame currentFrame = Fringe.Dequeue();
-
-                AddToNextFringe(ConjIntro(currentFrame), currentFrame);
-                AddToNextFringe(ConjElim(currentFrame), currentFrame);
-                AddToNextFringe(DisjIntro(currentFrame), currentFrame);
-                //AddToNextFringe(DisjElim(currentFrame), currentFrame);
-                //AddToNextFringe(NegIntro(currentFrame), currentFrame);
-                AddToNextFringe(NegElim(currentFrame), currentFrame);
-                //AddToNextFringe(ImplIntro(currentFrame), currentFrame);
-                AddToNextFringe(ImplElim(currentFrame), currentFrame);
-                AddToNextFringe(IffIntro(currentFrame), currentFrame);
-                AddToNextFringe(IffElim(currentFrame), currentFrame);
-            }
-        }
-
-        public static void DeriveSubgoals()
-        {
-            while (GoalFringe.Any())
-            {
-                Goal currentGoal = GoalFringe.Dequeue();
-                /*List<Goal> derivedSubgoals = currentGoal.DeriveSubgoals();
-
-                if (derivedSubgoals != null)
-                {
-                    /*foreach (Goal subgoal in currentGoal.DeriveSubgoals())
-                    {
-                        NextGoalFringe.Enqueue(subgoal);
-                        currentGoal.subGoals.Add(subgoal);
-                    }
-                }*/
-            }
-        }
-
-        /// <summary>
-        /// Tries to prove a goal within a frame. Returns the new frame if successful, returns null otherwise.
-        /// </summary>
-        /// <param name="frame"></param>
-        /// <param name="goal"></param>
-        /// <returns></returns>
-        public static Frame Prove(Frame frame, IFormula goal)
-        {
-            //TODO: Make the magic happen
-            //TODO: Loop through all rules and see which ones can be applied
-
-            Fringe.Enqueue(frame);
-
-            while (Fringe.Any())
-            {
-                Frame currentFrame = Fringe.Dequeue();
-
-                //Only perform conjunction introduction if the conclusion is a conjunction (to prevent memory overload)
-                foreach (Frame inference in ConjIntro(currentFrame))
-                {
-                    if (inference.frame.First().Facts.Contains(goal))
-                    {
-                        return inference;
-                    }
-                    Fringe.Enqueue(inference);
-                }
-                foreach (Frame inference in ConjElim(currentFrame))
-                {
-                    if (inference.frame.First().Facts.Contains(goal))
-                    {
-                        return inference;
-                    }
-                    Fringe.Enqueue(inference);
-                }
-                foreach (Frame inference in DisjIntro(currentFrame))
-                {
-                    if (inference.frame.First().Facts.Contains(goal))
-                    {
-                        return inference;
-                    }
-                    Fringe.Enqueue(inference);
-                }
-                foreach (Frame inference in DisjElim(currentFrame))
-                {
-                    if (inference.frame.First().Facts.Contains(goal))
-                    {
-                        return inference;
-                    }
-                    Fringe.Enqueue(inference);
-                }
-                foreach (Frame inference in NegIntro(currentFrame))
-                {
-                    if (inference.frame.First().Facts.Contains(goal))
-                    {
-                        return inference;
-                    }
-                    Fringe.Enqueue(inference);
-                }
-                foreach (Frame inference in NegElim(currentFrame))
-                {
-                    if (inference.frame.First().Facts.Contains(goal))
-                    {
-                        return inference;
-                    }
-                    Fringe.Enqueue(inference);
-                }
-                foreach (Frame inference in ImplIntro(currentFrame))
-                {
-                    if (inference.frame.First().Facts.Contains(goal))
-                    {
-                        return inference;
-                    }
-                    Fringe.Enqueue(inference);
-                }
-                foreach (Frame inference in ImplElim(currentFrame))
-                {
-                    if (inference.frame.First().Facts.Contains(goal))
-                    {
-                        return inference;
-                    }
-                    Fringe.Enqueue(inference);
-                }
-                foreach (Frame inference in IffIntro(currentFrame))
-                {
-                    if (inference.frame.First().Facts.Contains(goal))
-                    {
-                        return inference;
-                    }
-                    Fringe.Enqueue(inference);
-                }
-                foreach (Frame inference in IffElim(currentFrame))
-                {
-                    if (inference.frame.First().Facts.Contains(goal))
-                    {
-                        return inference;
-                    }
-                    Fringe.Enqueue(inference);
-                }
-            }
-            return null;
-        }
-
         public static Frame ApplyNegIntro(Frame frame, IFormula negation, IFormula contra1, IFormula contra2)
         {
             Tuple<Interval, Interval, Interval> negInt = FindInt(frame, negation, contra1, contra2);
@@ -802,7 +713,8 @@ namespace Natural_Deduction_Tool
             }
             List<IFormula> forms = new List<IFormula> { negation, contra1, contra2 };
             Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-            return newFrame.Item1.AddForm(new Negation(negation), newFrame.Item1.Last.Item2.parent, new Annotation(newFrame.Item2, Rules.NEG, true));
+            newFrame.Item1.AddForm(new Negation(negation), newFrame.Item1.Last.Item2.parent, new Annotation(newFrame.Item2, Rules.NEG, true));
+            return newFrame.Item1;
         }
 
         public static Frame ApplyNegElim(Frame frame, Negation neg)
@@ -819,7 +731,8 @@ namespace Natural_Deduction_Tool
             Negation neg2 = neg.Formula as Negation;
             List<IFormula> forms = new List<IFormula> { neg };
             Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-            return newFrame.Item1.AddForm(neg2.Formula, new Annotation(newFrame.Item2, Rules.NEG, false));
+            newFrame.Item1.AddForm(neg2.Formula, new Annotation(newFrame.Item2, Rules.NEG, false));
+            return newFrame.Item1;
         }
 
         public static Frame ApplyDisjIntro(Frame frame, Disjunction disj)
@@ -834,13 +747,15 @@ namespace Natural_Deduction_Tool
             {
                 List<IFormula> forms = new List<IFormula> { disj.Left };
                 Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-                return newFrame.Item1.AddForm(disj, new Annotation(newFrame.Item2, Rules.OR, true));
+                newFrame.Item1.AddForm(disj, new Annotation(newFrame.Item2, Rules.OR, true));
+                return newFrame.Item1;
             }
             else
             {
                 List<IFormula> forms = new List<IFormula> { disj.Right };
                 Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-                return newFrame.Item1.AddForm(disj, new Annotation(newFrame.Item2, Rules.OR, true));
+                newFrame.Item1.AddForm(disj, new Annotation(newFrame.Item2, Rules.OR, true));
+                return newFrame.Item1;
             }
 
         }
@@ -871,7 +786,7 @@ namespace Natural_Deduction_Tool
                 if (frame.frame[i].Item1.Equals(disj))
                 {
                     disjInt = frame.frame[i].Item2;
-                    lines.Add(i);
+                    lines.Add(i + 1);
                     break;
                 }
             }
@@ -886,30 +801,30 @@ namespace Natural_Deduction_Tool
 
             for (int i = leftInt; i < frame.frame.Count; i++)
             {
-                if (frame.frame[i].Item2 != left)
+                if (frame.frame[i].Item2 == left.parent)
                 {
                     throw new Exception("Desired goal cannot be found in left disjunct interval.");
                 }
-                if (frame.frame[i].Item1.Equals(goal))
+                if (frame.frame[i].Item2 == left && frame.frame[i].Item1.Equals(goal) && frame.frame[i].Item3.rule != Rules.ASS)
                 {
-                    lines.Add(i);
+                    lines.Add(i + 1);
                     break;
                 }
             }
             for (int i = rightInt; i < frame.frame.Count; i++)
             {
-                if (frame.frame[i].Item2 != right)
+                if (frame.frame[i].Item2 == right.parent)
                 {
                     throw new Exception("Desired goal cannot be found in right disjunct interval.");
                 }
-                if (frame.frame[i].Item1.Equals(goal))
+                if (frame.frame[i].Item2 == right && frame.frame[i].Item1.Equals(goal) && frame.frame[i].Item3.rule != Rules.ASS)
                 {
-                    lines.Add(i);
+                    lines.Add(i + 1);
                     break;
                 }
             }
 
-            frame = frame.AddForm(goal, frame.Last.Item2.parent, new Annotation(lines, Rules.OR, false));
+            frame.AddForm(goal, frame.Last.Item2.parent, new Annotation(lines, Rules.OR, false));
 
             return frame;
         }
@@ -923,7 +838,8 @@ namespace Natural_Deduction_Tool
             }
             List<IFormula> forms = new List<IFormula> { ante, cons };
             Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-            return newFrame.Item1.AddForm(new Implication(ante, cons), newFrame.Item1.Last.Item2.parent, new Annotation(newFrame.Item2, Rules.IMP, true));
+            newFrame.Item1.AddForm(new Implication(ante, cons), newFrame.Item1.Last.Item2.parent, new Annotation(newFrame.Item2, Rules.IMP, true));
+            return newFrame.Item1;
         }
 
         public static Frame ApplyImplElim(Frame frame, Implication impl)
@@ -939,7 +855,8 @@ namespace Natural_Deduction_Tool
                 {
                     List<IFormula> forms = new List<IFormula> { impl, impl.Antecedent };
                     Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-                    return newFrame.Item1.AddForm(impl.Consequent, new Annotation(newFrame.Item2, Rules.IMP, false));
+                    newFrame.Item1.AddForm(impl.Consequent, new Annotation(newFrame.Item2, Rules.IMP, false));
+                    return newFrame.Item1;
                 }
             }
             throw new Exception("Tried applying ImplElim while antecedent was not known.");
@@ -954,7 +871,8 @@ namespace Natural_Deduction_Tool
             }
             List<IFormula> forms = new List<IFormula> { left, right };
             Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-            return newFrame.Item1.AddForm(new Iff(left, right), new Annotation(newFrame.Item2, Rules.BI, true));
+            newFrame.Item1.AddForm(new Iff(left, right), new Annotation(newFrame.Item2, Rules.BI, true));
+            return newFrame.Item1;
         }
 
         public static Frame ApplyIffElim(Frame frame, Iff iff, bool leftToRight)
@@ -968,11 +886,13 @@ namespace Natural_Deduction_Tool
             Tuple<Frame, List<int>> newFrame = REI(frame, forms);
             if (leftToRight)
             {
-                return newFrame.Item1.AddForm(new Implication(iff.Left, iff.Right), new Annotation(newFrame.Item2, Rules.BI, false));
+                newFrame.Item1.AddForm(new Implication(iff.Left, iff.Right), new Annotation(newFrame.Item2, Rules.BI, false));
+                return newFrame.Item1;
             }
             else
             {
-                return newFrame.Item1.AddForm(new Implication(iff.Right, iff.Left), new Annotation(newFrame.Item2, Rules.BI, false));
+                newFrame.Item1.AddForm(new Implication(iff.Right, iff.Left), new Annotation(newFrame.Item2, Rules.BI, false));
+                return newFrame.Item1;
             }
         }
 
@@ -985,7 +905,8 @@ namespace Natural_Deduction_Tool
             }
             List<IFormula> forms = new List<IFormula> { left, right };
             Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-            return newFrame.Item1.AddForm(new Conjunction(left, right), new Annotation(newFrame.Item2, Rules.AND, true));
+            newFrame.Item1.AddForm(new Conjunction(left, right), new Annotation(newFrame.Item2, Rules.AND, true));
+            return newFrame.Item1;
         }
 
         public static Frame ApplyConjElim(Frame frame, Conjunction conj, bool left)
@@ -999,11 +920,13 @@ namespace Natural_Deduction_Tool
             Tuple<Frame, List<int>> newFrame = REI(frame, forms);
             if (left)
             {
-                return newFrame.Item1.AddForm(conj.Left, new Annotation(newFrame.Item2, Rules.AND, false));
+                newFrame.Item1.AddForm(conj.Left, new Annotation(newFrame.Item2, Rules.AND, false));
+                return newFrame.Item1;
             }
             else
             {
-                return newFrame.Item1.AddForm(conj.Right, new Annotation(newFrame.Item2, Rules.AND, false));
+                newFrame.Item1.AddForm(conj.Right, new Annotation(newFrame.Item2, Rules.AND, false));
+                return newFrame.Item1;
             }
         }
 
@@ -1011,355 +934,6 @@ namespace Natural_Deduction_Tool
         {
             List<IFormula> forms = new List<IFormula>() { goal };
             return REI(frame, forms).Item1;
-        }
-
-
-
-        private static List<Frame> NegIntro(Frame frame)
-        {
-            List<Frame> output = new List<Frame>();
-            HashSet<IFormula> facts = frame.ReturnFacts();
-
-            foreach (Line line in frame.frame)
-            {
-                //Assumptions always have a parent hypothesis interval
-                if (line.Item2 == frame.frame.Last().Item2 && line.Item3.rule == Rules.ASS)
-                {
-
-                    //Remove all redundant negation signs for comparison
-                    List<IFormula> noRedundant = new List<IFormula>();
-                    foreach (IFormula form in facts)
-                    {
-                        if (form is Negation)
-                        {
-                            Negation neg = form as Negation;
-                            noRedundant.Add(neg.RemoveRedundantNegs());
-                        }
-                        else
-                        {
-                            noRedundant.Add(form);
-                        }
-                    }
-                    foreach (IFormula form in noRedundant)
-                    {
-                        if (noRedundant.Contains(new Negation(form)))
-                        {
-                            Negation neg = new Negation(line.Item1);
-                            List<IFormula> forms = new List<IFormula> { form, new Negation(form) };
-                            Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-                            output.Add(newFrame.Item1.AddForm(neg, newFrame.Item1.Last.Item2.parent, new Annotation(newFrame.Item2, Rules.NEG, true)));
-                        }
-                    }
-                }
-            }
-            return output;
-        }
-
-        private static List<Frame> NegElim(Frame frame)
-        {
-            List<Frame> output = new List<Frame>();
-            HashSet<IFormula> facts = frame.ReturnFacts();
-
-            foreach (Line line in frame.frame)
-            {
-                if (line.Item1 is Negation)
-                {
-                    Negation neg = line.Item1 as Negation;
-                    if (neg.Formula is Negation)
-                    {
-                        Negation neg2 = neg.Formula as Negation;
-                        if (!facts.Contains(neg2.Formula))
-                        {
-                            List<IFormula> forms = new List<IFormula> { line.Item1 };
-                            Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-                            output.Add(newFrame.Item1.AddForm(neg2.Formula, new Annotation(newFrame.Item2, Rules.NEG, false)));
-                        }
-                    }
-                }
-            }
-            return output;
-        }
-
-        private static List<Frame> ConjIntro(Frame frame)
-        {
-            List<Frame> output = new List<Frame>();
-            HashSet<IFormula> facts = frame.ReturnFacts();
-
-            foreach (Line line in frame.frame)
-            {
-                foreach (Line line2 in frame.frame)
-                {
-                    if (line2.Item2.ThisOrParent(line.Item2))
-                    {
-                        Conjunction conj = new Conjunction(line.Item1, line2.Item1);
-                        if (!facts.Contains(conj) && SubForms.Contains(conj))
-                        {
-                            List<IFormula> forms = new List<IFormula> { line.Item1, line2.Item1 };
-                            Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-                            output.Add(newFrame.Item1.AddForm(conj, new Annotation(newFrame.Item2, Rules.AND, true)));
-                        }
-                        Conjunction conjMirror = new Conjunction(line2.Item1, line.Item1);
-                        if (!facts.Contains(conjMirror) && SubForms.Contains(conjMirror))
-                        {
-                            List<IFormula> forms = new List<IFormula> { line2.Item1, line.Item1 };
-                            Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-                            output.Add(newFrame.Item1.AddForm(conjMirror, new Annotation(newFrame.Item2, Rules.AND, true)));
-                        }
-                    }
-                }
-            }
-            return output;
-        }
-
-        private static List<Frame> ConjElim(Frame frame)
-        {
-            List<Frame> output = new List<Frame>();
-            HashSet<IFormula> facts = frame.ReturnFacts();
-
-            foreach (Line line in frame.frame)
-            {
-                if (line.Item1 is Conjunction)
-                {
-                    Conjunction conj = line.Item1 as Conjunction;
-                    if (!facts.Contains(conj.Left))
-                    {
-                        List<IFormula> forms = new List<IFormula> { conj };
-                        Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-                        output.Add(newFrame.Item1.AddForm(conj.Left, new Annotation(newFrame.Item2, Rules.AND, false)));
-                    }
-                    if (!facts.Contains(conj.Right))
-                    {
-                        List<IFormula> forms = new List<IFormula> { conj };
-                        Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-                        output.Add(newFrame.Item1.AddForm(conj.Right, new Annotation(newFrame.Item2, Rules.AND, false)));
-                    }
-                }
-            }
-            return output;
-        }
-
-        private static List<Frame> DisjIntro(Frame frame)
-        {
-            List<Frame> output = new List<Frame>();
-            HashSet<IFormula> facts = frame.ReturnFacts();
-
-            foreach (Line line in frame.frame)
-            {
-                foreach (Line line2 in frame.frame)
-                {
-
-                    Disjunction disj = new Disjunction(line.Item1, line2.Item1);
-                    if (!facts.Contains(disj) && SubForms.Contains(disj))
-                    {
-                        List<IFormula> forms = new List<IFormula> { line.Item1, line2.Item1 };
-                        Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-                        output.Add(newFrame.Item1.AddForm(disj, new Annotation(newFrame.Item2, Rules.OR, true)));
-                    }
-                    Disjunction disjMirror = new Disjunction(line2.Item1, line.Item1);
-                    if (!facts.Contains(disjMirror) && SubForms.Contains(disjMirror))
-                    {
-                        List<IFormula> forms = new List<IFormula> { line2.Item1, line.Item1 };
-                        Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-                        output.Add(newFrame.Item1.AddForm(disjMirror, new Annotation(newFrame.Item2, Rules.OR, true)));
-                    }
-                }
-
-                foreach (IFormula form2 in SubForms)
-                {
-                    Disjunction disj = new Disjunction(line.Item1, form2);
-                    if (!facts.Contains(disj) && SubForms.Contains(disj))
-                    {
-                        List<int> lines = new List<int>
-                        {
-                            frame.frame.IndexOf(line) + 1
-                        };
-                        output.Add(frame.AddForm(disj, new Annotation(lines, Rules.OR, true)));
-                    }
-                    Disjunction disjMirror = new Disjunction(form2, line.Item1);
-                    if (!facts.Contains(disjMirror) && SubForms.Contains(disjMirror))
-                    {
-                        List<int> lines = new List<int>
-                        {
-                            frame.frame.IndexOf(line) + 1
-                        };
-                        output.Add(frame.AddForm(disjMirror, new Annotation(lines, Rules.OR, true)));
-                    }
-                }
-            }
-            return output;
-        }
-
-        private static List<Frame> DisjElim(Frame frame)
-        {
-            List<Frame> output = new List<Frame>();
-
-            foreach (Line line in frame.frame)
-            {
-                if (line.Item1 is Disjunction)
-                {
-                    HashSet<IFormula> facts = line.Item2.ReturnFacts();
-                    Disjunction disj = line.Item1 as Disjunction;
-                    int DisjLine = frame.frame.IndexOf(line);
-                    List<Tuple<IFormula, Interval>> factsLeft = new List<Tuple<IFormula, Interval>>();
-                    List<Tuple<IFormula, Interval>> factsRight = new List<Tuple<IFormula, Interval>>();
-                    List<Tuple<IFormula, Interval>> factsBoth = new List<Tuple<IFormula, Interval>>();
-                    foreach (Line line2 in frame.frame)
-                    {
-                        if (line2.Item3.rule == Rules.ASS && line2.Item2.parent == line.Item2 && line2.Item1.Equals(disj.Left))
-                        {
-                            foreach (IFormula fact in line2.Item2.facts)
-                            {
-                                factsLeft.Add(new Tuple<IFormula, Interval>(fact, line2.Item2));
-                            }
-                        }
-                        if (line2.Item3.rule == Rules.ASS && line2.Item2.parent == line.Item2 && line2.Item1.Equals(disj.Right))
-                        {
-                            foreach (IFormula fact in line2.Item2.facts)
-                            {
-                                factsRight.Add(new Tuple<IFormula, Interval>(fact, line2.Item2));
-                            }
-                        }
-                    }
-                    foreach (Tuple<IFormula, Interval> fact in factsLeft)
-                    {
-                        foreach (Tuple<IFormula, Interval> fact2 in factsRight)
-                        {
-                            if (fact.Item1.Equals(fact2.Item1) && !facts.Contains(fact.Item1))
-                            {
-                                List<Tuple<IFormula, Interval>> forms = new List<Tuple<IFormula, Interval>> { fact, fact2 };
-                                Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-                                output.Add(newFrame.Item1.AddForm(fact.Item1, newFrame.Item1.frame[DisjLine].Item2, new Annotation(newFrame.Item2, Rules.OR, false)));
-                            }
-                        }
-                    }
-                }
-            }
-            return output;
-        }
-
-        private static List<Frame> ImplIntro(Frame frame)
-        {
-            List<Frame> output = new List<Frame>();
-            HashSet<IFormula> facts = frame.ReturnFacts();
-
-            foreach (Line line in frame.frame)
-            {
-                //Assumptions always have a parent hypothesis interval
-                if (line.Item3.rule == Rules.ASS)
-                {
-                    int AssLine = frame.frame.IndexOf(line);
-                    foreach (Line line2 in frame.frame)
-                    {
-                        if (line2.Item2.ThisOrParent(line.Item2))
-                        {
-                            Implication impl = new Implication(line.Item1, line2.Item1);
-                            if (!line.Item2.parent.ReturnFacts().Contains(impl) && SubForms.Contains(impl))
-                            {
-                                List<IFormula> forms = new List<IFormula> { line2.Item1 };
-                                Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-                                newFrame.Item2.Insert(0, frame.frame.IndexOf(line) + 1);
-                                output.Add(newFrame.Item1.AddForm(impl, newFrame.Item1.frame[AssLine].Item2.parent, new Annotation(newFrame.Item2, Rules.IMP, true)));
-                            }
-                        }
-                    }
-                }
-            }
-            return output;
-        }
-
-        private static List<Frame> ImplElim(Frame frame)
-        {
-            List<Frame> output = new List<Frame>();
-            Interval currentNode = frame.Last.Item2;
-            foreach (Line line in frame.frame)
-            {
-                if (line.Item2.ThisOrParent(currentNode) && line.Item1 is Implication)
-                {
-                    Implication impl = line.Item1 as Implication;
-                    foreach (Line line2 in frame.frame)
-                    {
-                        if (line2.Item1.Equals(impl.Antecedent) && !frame.Last.Item2.facts.Contains(impl.Consequent) && line2.Item2.ThisOrParent(currentNode))
-                        {
-                            List<IFormula> forms = new List<IFormula> { impl, impl.Antecedent };
-                            Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-                            output.Add(newFrame.Item1.AddForm(impl.Consequent, new Annotation(newFrame.Item2, Rules.IMP, false)));
-                        }
-                    }
-                }
-            }
-
-            return output;
-        }
-
-        private static List<Frame> IffIntro(Frame frame)
-        {
-            List<Frame> output = new List<Frame>();
-            HashSet<IFormula> facts = frame.ReturnFacts();
-
-            foreach (Line line in frame.frame)
-            {
-                if (line.Item1 is Implication)
-                {
-                    foreach (Line line2 in frame.frame)
-                    {
-                        if (line2.Item2.ThisOrParent(line.Item2) && line2.Item1 is Implication)
-                        {
-                            Implication impl = line.Item1 as Implication;
-                            Implication impl2 = line2.Item1 as Implication;
-                            if (impl.Antecedent.Equals(impl2.Consequent) && impl.Consequent.Equals(impl2.Antecedent))
-                            {
-                                Iff iff = new Iff(impl.Antecedent, impl.Consequent);
-                                if (!facts.Contains(iff))
-                                {
-                                    List<IFormula> forms = new List<IFormula> { impl, impl2 };
-                                    Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-                                    output.Add(newFrame.Item1.AddForm(iff, new Annotation(newFrame.Item2, Rules.BI, true)));
-                                }
-                                Iff iffMirror = new Iff(impl.Consequent, impl.Antecedent);
-                                if (!facts.Contains(iffMirror))
-                                {
-                                    List<IFormula> forms = new List<IFormula> { impl2, impl };
-                                    Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-                                    output.Add(newFrame.Item1.AddForm(iffMirror, new Annotation(newFrame.Item2, Rules.BI, true)));
-                                }
-                            }
-                        }
-                    }
-
-                }
-            }
-            return output;
-        }
-
-        private static List<Frame> IffElim(Frame frame)
-        {
-            List<Frame> output = new List<Frame>();
-            HashSet<IFormula> facts = frame.ReturnFacts();
-
-            foreach (Line line in frame.frame)
-            {
-                if (line.Item1 is Iff)
-                {
-                    Iff iff = line.Item1 as Iff;
-
-                    Implication left = new Implication(iff.Left, iff.Right);
-                    Implication right = new Implication(iff.Right, iff.Left);
-                    if (!facts.Contains(left))
-                    {
-                        List<IFormula> forms = new List<IFormula> { iff };
-                        Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-                        output.Add(newFrame.Item1.AddForm(left, new Annotation(newFrame.Item2, Rules.BI, false)));
-                    }
-                    if (!facts.Contains(right))
-                    {
-                        List<IFormula> forms = new List<IFormula> { iff };
-                        Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-                        output.Add(newFrame.Item1.AddForm(right, new Annotation(newFrame.Item2, Rules.BI, false)));
-                    }
-
-                }
-            }
-            return output;
         }
 
         /// <summary>
@@ -1389,7 +963,8 @@ namespace Natural_Deduction_Tool
                         if (line.Item1.Equals(form) && line.Item2.ThisOrParent(lastNode))
                         {
                             list.Add(output.frame.IndexOf(line) + 1);
-                            intermediate = output.AddForm(form, new Annotation(list, Rules.REI, true));
+                            intermediate = output;
+                            intermediate.AddForm(form, new Annotation(list, Rules.REI, true));
                             outputList.Add(intermediate.frame.Count);
                             break;
                         }
@@ -1405,7 +980,8 @@ namespace Natural_Deduction_Tool
                             if (line.Item2.facts.Count == 1 && forms.Count == 1 && line.Item2.parent != null)
                             {
                                 list.Add(output.frame.IndexOf(line) + 1);
-                                intermediate = output.AddForm(form, new Annotation(list, Rules.REI, true));
+                                intermediate = output;
+                                intermediate.AddForm(form, new Annotation(list, Rules.REI, true));
                                 outputList.Add(intermediate.frame.Count);
                             }
                             else
@@ -1446,7 +1022,8 @@ namespace Natural_Deduction_Tool
                         if (line.Item1.Equals(tuple.Item1) && line.Item2.ThisOrParent(tuple.Item2))
                         {
                             list.Add(output.frame.IndexOf(line) + 1);
-                            intermediate = output.AddForm(tuple.Item1, tuple.Item2, new Annotation(list, Rules.REI, true));
+                            intermediate = output;
+                            intermediate.AddForm(tuple.Item1, tuple.Item2, new Annotation(list, Rules.REI, true));
                             outputList.Add(intermediate.frame.Count);
                             break;
                         }
@@ -1557,19 +1134,6 @@ namespace Natural_Deduction_Tool
             return interval;
         }
 
-        private static void AddToNextFringe(List<Frame> frameList, Frame parentFrame)
-        {
-            foreach (Frame inference in frameList)
-            {
-                /*if (!MatchFacts(inference))
-                {
-                    NextFringe.Enqueue(inference);
-                    parentFrame.DerivedFrames.Add(inference);
-                    ClosedList.Add(inference.ReturnFacts());
-                }*/
-            }
-        }
-
         /// <summary>
         /// If the formula matches the goal, the goal is checked for completeness.
         /// Conjunctions and bi-impls need both sides to be completed before they are considered complete;
@@ -1581,9 +1145,12 @@ namespace Natural_Deduction_Tool
         /// <returns></returns>
         private static bool MatchGoal(IFormula form, Goal goal)
         {
-            if (goal.goal.Equals(form))
+            if (!(goal is ImplGoal || goal is MPGoal))
             {
-                return goal.Complete();
+                if (goal.goal.Equals(form))
+                {
+                    return goal.Complete();
+                }
             }
             return false;
         }
@@ -1592,13 +1159,14 @@ namespace Natural_Deduction_Tool
         {
             Stack<Goal> goalStack = new Stack<Goal>();
             Stack<Derivation> derivStack = new Stack<Derivation>();
-            Queue<Goal> buildOrder = new Queue<Goal>();
+            Stack<Goal> buildOrder = new Stack<Goal>();
             Stack<Derivation> buildOrderDeriv = new Stack<Derivation>();
             goalStack.Push(goal);
             bool noCompleteChildren = true;
 
             while (goalStack.Any())
             {
+                noCompleteChildren = true;
                 Goal current = goalStack.Pop();
                 foreach (Goal subgoal in current.subGoals)
                 {
@@ -1610,12 +1178,11 @@ namespace Natural_Deduction_Tool
                 }
                 if (noCompleteChildren)
                 {
-                    noCompleteChildren = false;
                     foreach (Derivation deriv in derivs)
                     {
                         if (deriv.Form.Equals(current.goal))
                         {
-                            if (!buildOrderDeriv.Contains(deriv))
+                            if (!derivStack.Contains(deriv))
                             {
                                 derivStack.Push(deriv);
                             }
@@ -1623,7 +1190,10 @@ namespace Natural_Deduction_Tool
                         }
                     }
                 }
-                buildOrder.Enqueue(current);
+                if (!(current is MPGoal))
+                {
+                    buildOrder.Push(current);
+                }
             }
 
             //Make the necessary derivations
@@ -1650,13 +1220,14 @@ namespace Natural_Deduction_Tool
                 List<int> lines = new List<int>();
                 foreach (Line line in output.frame)
                 {
-                    if (line.Item1.Equals(goal.goal))
+                    if (line.Item1.Equals(goal.goal) && line.Item2 == output.Last.Item2)
                     {
                         lines.Add(output.frame.IndexOf(line) + 1);
                         break;
                     }
                 }
-                return output.AddForm(goal.goal, new Annotation(lines, Rules.REI, false));
+                output.AddForm(goal.goal, new Annotation(lines, Rules.REI, false));
+                return output;
             }
 
             while (buildOrderDeriv.Any())
@@ -1702,7 +1273,6 @@ namespace Natural_Deduction_Tool
                         output = ApplyIffElim(output, iff, left.Equals(current.Form));
                         break;
                     case Rules.OR:
-                        //TODO: wordt leuk dit
                         Disjunction orig = current.Origin.origins[0] as Disjunction;
                         List<Derivation> leftOR = new List<Derivation>();
                         if (current.Origin.parents[0].Origin.parents != null)
@@ -1723,30 +1293,32 @@ namespace Natural_Deduction_Tool
                                 }
                             }
                         }
-                        output = output.AddAss(orig.Left);
+                        output.AddAss(orig.Left);
                         output = MakeFrame(output, leftOR, new Goal(current.Form));
-
-                        List<Derivation> rightOR = new List<Derivation>();
-                        if (current.Origin.parents[1].Origin.parents != null)
+                        if (!orig.Left.Equals(orig.Right))
                         {
-                            rightOR.Add(current.Origin.parents[1]);
-                            Stack<Derivation> parentStack = new Stack<Derivation>();
-                            parentStack.Push(current.Origin.parents[1]);
-                            while (parentStack.Any())
+                            List<Derivation> rightOR = new List<Derivation>();
+                            if (current.Origin.parents[1].Origin.parents != null)
                             {
-                                Derivation currentParent = parentStack.Pop();
-                                foreach (Derivation deriv in currentParent.Origin.parents)
+                                rightOR.Add(current.Origin.parents[1]);
+                                Stack<Derivation> parentStack = new Stack<Derivation>();
+                                parentStack.Push(current.Origin.parents[1]);
+                                while (parentStack.Any())
                                 {
-                                    if (deriv.Origin.parents != null && !output.ReturnFacts().Contains(deriv.Form))
+                                    Derivation currentParent = parentStack.Pop();
+                                    foreach (Derivation deriv in currentParent.Origin.parents)
                                     {
-                                        parentStack.Push(deriv);
-                                        rightOR.Add(deriv);
+                                        if (deriv.Origin.parents != null && !output.ReturnFacts().Contains(deriv.Form))
+                                        {
+                                            parentStack.Push(deriv);
+                                            rightOR.Add(deriv);
+                                        }
                                     }
                                 }
                             }
+                            output.AddAss(orig.Right, output.Last.Item2.parent);
+                            output = MakeFrame(output, rightOR, new Goal(current.Form));
                         }
-                        output = output.AddAss(orig.Right, output.Last.Item2.parent);
-                        output = MakeFrame(output, rightOR, new Goal(current.Form));
                         output = ApplyDisjElim(output, orig, current.Form);
                         break;
                 }
@@ -1754,32 +1326,95 @@ namespace Natural_Deduction_Tool
 
             while (buildOrder.Any())
             {
-                Goal current = buildOrder.Dequeue();
+                Goal current = buildOrder.Pop();
+                if (current is ImplGoal)
+                {
+                    Goal cons = buildOrder.Pop();
+                    if (!output.ReturnFacts().Contains(cons.goal))
+                    {
+                        output = ApplyImplElim(output, current.goal as Implication);
+                    }
+                    continue;
+                }
                 if (current.goal is Disjunction)
                 {
-                    output = ApplyDisjIntro(output, goal.parent.goal as Disjunction);
+                    Disjunction disj = current.goal as Disjunction;
+                    if (!output.ReturnFacts().Contains(disj))
+                    {
+                        output = ApplyDisjIntro(output, disj);
+                    }
                 }
                 else if (current.goal is Conjunction)
                 {
-                    Conjunction conj = goal.parent.goal as Conjunction;
-                    output = ApplyConjIntro(output, conj.Left, conj.Right);
+                    Conjunction conj = current.goal as Conjunction;
+                    if (!output.ReturnFacts().Contains(conj))
+                    {
+                        output = ApplyConjIntro(output, conj.Left, conj.Right);
+                    }
                 }
                 else if (current.goal is Implication)
                 {
-                    Implication impl = goal.parent.goal as Implication;
-                    output = output.AddAss(impl.Antecedent);
-                    output = ApplyImplIntro(output, impl.Antecedent, impl.Consequent);
+                    Implication impl = current.goal as Implication;
+                    if (!output.ReturnFacts().Contains(impl))
+                    {
+                        output.AddAss(impl.Antecedent);
+                        output = ApplyImplIntro(output, impl.Antecedent, impl.Consequent);
+                    }
                 }
                 else if (current.goal is Iff)
                 {
-                    Iff iff = goal.parent.goal as Iff;
-                    output = ApplyIffIntro(output, new Implication(iff.Left, iff.Right), new Implication(iff.Right, iff.Left));
+                    Iff iff = current.goal as Iff;
+                    if (!output.ReturnFacts().Contains(iff))
+                    {
+                        output = ApplyIffIntro(output, new Implication(iff.Left, iff.Right), new Implication(iff.Right, iff.Left));
+                    }
                 }
-
-                goal = goal.parent;
             }
 
             return output;
+        }
+
+        private static void MatchWithMPGoals(Implication impl)
+        {
+            Queue<Goal> queue = new Queue<Goal>();
+            queue.Enqueue(goal);
+
+            while (queue.Any())
+            {
+                Goal current = queue.Dequeue();
+                if(current is MPGoal)
+                {
+                    MPGoal mpg = current as MPGoal;
+                    if (mpg.consequent.Equals(impl.Consequent))
+                    {
+                        ImplGoal newGoal = new ImplGoal(impl,mpg);
+                        newGoal.DeriveMPSubgoalTree();
+                    }
+                }
+                foreach(Goal subgoal in current.subGoals)
+                {
+                    queue.Enqueue(subgoal);
+                }
+            }
+            
+        }
+    }
+
+    public class ReadOnlyTextBox : TextBox
+    {
+        [DllImport("user32.dll")]
+        static extern bool HideCaret(IntPtr hWnd);
+
+        public ReadOnlyTextBox()
+        {
+            ReadOnly = true;
+            GotFocus += TextBoxGotFocus;
+            Cursor = Cursors.Arrow; // mouse cursor like in other controls
+        }
+
+        private void TextBoxGotFocus(object sender, EventArgs args)
+        {
+            HideCaret(this.Handle);
         }
     }
 }

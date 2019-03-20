@@ -10,11 +10,59 @@ namespace Natural_Deduction_Tool
     {
         public IFormula Form { get; }
         public Origin Origin { get; set; }
+        public int Length { get; private set; }
+        public List<Derivation> Children { get; }
 
         public Derivation(IFormula form, Origin orig)
         {
             Form = form;
             Origin = orig;
+            Children = new List<Derivation>();
+            if (Origin.rule != Rules.HYPO && Origin.rule != Rules.ASS)
+            {
+                int temp = 0;
+                foreach (Derivation deriv in Origin.parents)
+                {
+                    temp += deriv.Length;
+                }
+                Length = temp + 1;
+                foreach (Derivation parent in Origin.parents)
+                {
+                    parent.Children.Add(this);
+                }
+            }
+            else
+            {
+                Length = Origin.depth;
+            }
+        }
+
+        public void ReplaceParent(Derivation newParent)
+        {
+            for (int i = 0; i < Origin.parents.Count; i++)
+            {
+                if(Origin.parents[i].Form.Equals(newParent.Form) && Origin.parents[i].Length > newParent.Length)
+                {
+                    Origin.parents.RemoveAt(i);
+                    Origin.parents.Insert(i, newParent);
+                    RecalcLength();
+                    break;
+                }
+            }
+        }
+
+        private void RecalcLength()
+        {
+            int temp = 0;
+            foreach (Derivation deriv in Origin.parents)
+            {
+                temp += deriv.Length;
+            }
+            Length = temp + 1;
+            foreach(Derivation child in Children)
+            {
+                child.RecalcLength();
+            }
         }
     }
 
@@ -23,6 +71,7 @@ namespace Natural_Deduction_Tool
         public List<IFormula> origins;
         public List<Derivation> parents;
         public Rules rule;
+        public int depth;
 
         public Origin(List<IFormula> orig, Rules rul, List<Derivation> par)
         {
@@ -35,7 +84,7 @@ namespace Natural_Deduction_Tool
             parents = par;
         }
 
-        public Origin(Rules rul)
+        public Origin(Rules rul, int dpt = 0)
         {
             if(rul != Rules.HYPO && rul != Rules.ASS)
             {
@@ -43,6 +92,7 @@ namespace Natural_Deduction_Tool
             }
             origins = null;
             parents = null;
+            depth = dpt;
             rule = rul;
         }
     }

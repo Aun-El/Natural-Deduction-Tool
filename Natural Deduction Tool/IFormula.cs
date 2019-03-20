@@ -291,6 +291,16 @@ namespace Natural_Deduction_Tool
             right = r;
         }
 
+        /// <summary>
+        /// Returns an implication with only a consequent. Used for modus ponens checking.
+        /// </summary>
+        /// <param name="r"></param>
+        public Implication(IFormula r, bool reminder)
+        {
+            right = r;
+            left = null;
+        }
+
         public HashSet<IFormula> GetSubForms(HashSet<IFormula> set)
         {
             set.Add(this);
@@ -317,7 +327,7 @@ namespace Natural_Deduction_Tool
 
         public override bool Equals(object obj)
         {
-            if ((obj == null) || !GetType().Equals(obj.GetType()))
+            if ((obj == null) || !GetType().Equals(obj.GetType()) || left == null)
             {
                 return false;
             }

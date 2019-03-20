@@ -38,38 +38,22 @@ namespace Natural_Deduction_Tool
             }
         }
 
-        public Frame AddAss(IFormula form)
+        public void AddAss(IFormula form)
         {
-            Frame output = new Frame();
             Interval newNode = new Interval(frame.Last().Item2);
             Annotation anno = new Annotation(Rules.ASS);
 
-            foreach (Line line in frame)
-            {
-                //New formulas will only be true in their current hypothesis interval
-                //It is only necessary to keep a seperate fact list for the interval the new formula will be added to
-                output.frame.Add(new Line(line.Item1, line.Item2, line.Item3));
-            }
-            output.frame.Add(new Line(form, newNode, anno));
+            frame.Add(new Line(form, newNode, anno));
             newNode.facts.Add(form);
-            return output;
         }
 
-        public Frame AddAss(IFormula form, Interval interval)
+        public void AddAss(IFormula form, Interval interval)
         {
-            Frame output = new Frame();
             Interval newNode = new Interval(interval);
             Annotation anno = new Annotation(Rules.ASS);
 
-            foreach (Line line in frame)
-            {
-                //New formulas will only be true in their current hypothesis interval
-                //It is only necessary to keep a seperate fact list for the interval the new formula will be added to
-                output.frame.Add(new Line(line.Item1, line.Item2, line.Item3));
-            }
-            output.frame.Add(new Line(form, newNode, anno));
+            frame.Add(new Line(form, newNode, anno));
             newNode.facts.Add(form);
-            return output;
         }
 
         /// <summary>
@@ -79,40 +63,14 @@ namespace Natural_Deduction_Tool
         /// <param name="node"></param>
         /// <param name="anno"></param>
         /// <returns></returns>
-        public Frame AddForm(IFormula form, Interval node, Annotation anno)
+        public void AddForm(IFormula form, Interval node, Annotation anno)
         {
-            Frame output = new Frame();
-            Interval currentNode = frame.First().Item2;
-            Interval newNode = currentNode.Clone();
-            Dictionary<Interval, Interval> links = new Dictionary<Interval, Interval>();
-            links[currentNode] = newNode;
-
             if (frame.Last().Item2 != node && frame.Last().Item2.parent != node)
             {
                 throw new Exception("Illegal AddForm call");
             }
-            foreach (Line line in frame)
-            {
-                if (currentNode != line.Item2)
-                {
-                    if (!links.ContainsKey(line.Item2))
-                    {
-                        //Add new entry to the dictionary if the interval has not yet been seen, i.e. a new interval has been opened
-                        newNode = line.Item2.Clone(newNode);
-                        currentNode = line.Item2;
-                        links[currentNode] = newNode;
-                    }
-                    else
-                    {
-                        currentNode = line.Item2;
-                        newNode = links[currentNode];
-                    }
-                }
-                output.frame.Add(new Line(line.Item1, newNode, line.Item3));
-            }
-            links[node].facts.Add(form);
-            output.frame.Add(new Line(form, links[node], anno));
-            return output;
+            frame.Add(new Line(form, node, anno));
+            node.facts.Add(form);
         }
 
         /// <summary>
@@ -121,33 +79,11 @@ namespace Natural_Deduction_Tool
         /// <param name="form"></param>
         /// <param name="anno"></param>
         /// <returns></returns>
-        public Frame AddForm(IFormula form, Annotation anno)
+        public void AddForm(IFormula form, Annotation anno)
         {
-            Frame output = new Frame();
-            Interval currentNode = frame.First().Item2;
-            Interval newNode = currentNode.Clone();
             Interval lastNode = frame.Last().Item2;
-            Dictionary<Interval, Interval> links = new Dictionary<Interval, Interval>();
-            links[currentNode] = newNode;
-
-            foreach (Line line in frame)
-            {
-                if (!links.ContainsKey(line.Item2))
-                {
-                    newNode = line.Item2.Clone(newNode);
-                    currentNode = line.Item2;
-                    links[currentNode] = newNode;
-                }
-                else
-                {
-                    currentNode = line.Item2;
-                    newNode = links[currentNode];
-                }
-                output.frame.Add(new Line(line.Item1, newNode, line.Item3));
-            }
-            links[lastNode].facts.Add(form);
-            output.frame.Add(new Line(form, links[lastNode], anno));
-            return output;
+            frame.Add(new Line(form, lastNode, anno));
+            lastNode.facts.Add(form);
         }
 
         /// <summary>
@@ -207,6 +143,7 @@ namespace Natural_Deduction_Tool
                     else if (line.Item2.parent == current.parent)
                     {
                         newAss = true;
+                        output.Append("\t");
                         for (int i = 0; i < intervalCounter - 1; i++)
                         {
                             output.Append("| ");
@@ -264,28 +201,6 @@ namespace Natural_Deduction_Tool
         {
             facts = new List<IFormula>();
             parent = par;
-        }
-
-        public Interval Clone()
-        {
-            Interval output = new Interval();
-            foreach (IFormula fact in facts)
-            {
-                output.facts.Add(fact);
-            }
-            output.parent = parent;
-            return output;
-        }
-
-        public Interval Clone(Interval par)
-        {
-            Interval output = new Interval();
-            foreach (IFormula fact in facts)
-            {
-                output.facts.Add(fact);
-            }
-            output.parent = par;
-            return output;
         }
 
         /// <summary>
