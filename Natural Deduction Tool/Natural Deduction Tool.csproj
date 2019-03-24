@@ -62,8 +62,14 @@
     <Compile Include="PriorityQueue.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ReadOnlyTextBox.cs">
+      <SubType>Component</SubType>
+    </Compile>
     <Compile Include="SATSolver.cs" />
     <Compile Include="Searcher.cs" />
+    <Compile Include="Searcher_Derivation_Methods.cs" />
+    <Compile Include="Searcher_Helpers.cs" />
+    <Compile Include="Searcher_Rule_Applications.cs" />
     <Compile Include="Valuation.cs" />
     <EmbeddedResource Include="Form1.resx">
       <DependentUpon>Form1.cs</DependentUpon>

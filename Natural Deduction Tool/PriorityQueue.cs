@@ -1,8 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace Natural_Deduction_Tool
 {
@@ -10,11 +9,13 @@ namespace Natural_Deduction_Tool
     {
         public List<Derivation> Queue { get; private set; }
 
+        [DebuggerStepThrough]
         public PriorityQueue()
         {
             Queue = new List<Derivation>();
         }
 
+        [DebuggerStepThrough]
         public void Enqueue(Derivation item,List<Derivation> closedList)
         {
             for (int i = 0; i < closedList.Count; i++)
@@ -43,11 +44,12 @@ namespace Natural_Deduction_Tool
                     {
                         if (!inserted)
                         {
-                            //The derivation already exists with lower length
+                            //The derivation already exists with lower or equal length
                             return;
                         }
                         else
                         {
+                            //The derivation was already in the queue with a higher length
                             Queue.RemoveAt(i);
                             return;
                         }
@@ -65,6 +67,7 @@ namespace Natural_Deduction_Tool
             }
         }
 
+        [DebuggerStepThrough]
         public Derivation Dequeue()
         {
             Derivation output = Queue.First();
@@ -72,6 +75,7 @@ namespace Natural_Deduction_Tool
             return output;
         }
 
+        [DebuggerStepThrough]
         public bool Any()
         {
             return Queue.Any();

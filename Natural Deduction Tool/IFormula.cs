@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -20,6 +21,7 @@ namespace Natural_Deduction_Tool
     {
         string name;
 
+        [DebuggerStepThrough]
         public PropVar(string n)
         {
             name = n;
@@ -54,6 +56,7 @@ namespace Natural_Deduction_Tool
             set.Add(name);
         }
 
+        [DebuggerStepThrough]
         public override bool Equals(object obj)
         {
             if ((obj == null) || !GetType().Equals(obj.GetType()))
@@ -66,11 +69,13 @@ namespace Natural_Deduction_Tool
             }
         }
 
+        [DebuggerStepThrough]
         public override int GetHashCode()
         {
             return name.GetHashCode();
         }
 
+        [DebuggerStepThrough]
         public override string ToString()
         {
             return name;
@@ -87,6 +92,7 @@ namespace Natural_Deduction_Tool
             formula = neg;
         }
 
+        [DebuggerStepThrough]
         public HashSet<IFormula> GetSubForms(HashSet<IFormula> set)
         {
             set.Add(this);
@@ -127,6 +133,7 @@ namespace Natural_Deduction_Tool
             }
         }
 
+        [DebuggerStepThrough]
         public override bool Equals(object obj)
         {
             if ((obj == null) || !GetType().Equals(obj.GetType()))
@@ -139,11 +146,13 @@ namespace Natural_Deduction_Tool
             }
         }
 
+        [DebuggerStepThrough]
         public override int GetHashCode()
         {
             return ToString().GetHashCode();
         }
 
+        [DebuggerStepThrough]
         public override string ToString()
         {
             return "-" + formula.ToString();
@@ -157,6 +166,7 @@ namespace Natural_Deduction_Tool
         public IFormula Left { get { return left; } }
         public IFormula Right { get { return right; } }
 
+        [DebuggerStepThrough]
         public Disjunction(IFormula l, IFormula r)
         {
             left = l;
@@ -187,6 +197,7 @@ namespace Natural_Deduction_Tool
             right.Collect(set);
         }
 
+        [DebuggerStepThrough]
         public override bool Equals(object obj)
         {
             if ((obj == null) || !GetType().Equals(obj.GetType()))
@@ -199,11 +210,13 @@ namespace Natural_Deduction_Tool
             }
         }
 
+        [DebuggerStepThrough]
         public override int GetHashCode()
         {
             return ToString().GetHashCode();
         }
 
+        [DebuggerStepThrough]
         public override string ToString()
         {
             return "(" + left.ToString() + "\\/" + right.ToString() + ")";
@@ -216,6 +229,7 @@ namespace Natural_Deduction_Tool
         public IFormula Left { get { return left; } }
         public IFormula Right { get { return right; } }
 
+        [DebuggerStepThrough]
         public Conjunction(IFormula l, IFormula r)
         {
             left = l;
@@ -256,6 +270,7 @@ namespace Natural_Deduction_Tool
             right.Collect(set);
         }
 
+        [DebuggerStepThrough]
         public override bool Equals(object obj)
         {
             if ((obj == null) || !GetType().Equals(obj.GetType()))
@@ -268,11 +283,13 @@ namespace Natural_Deduction_Tool
             }
         }
 
+        [DebuggerStepThrough]
         public override int GetHashCode()
         {
             return ToString().GetHashCode();
         }
 
+        [DebuggerStepThrough]
         public override string ToString()
         {
             return "(" + left.ToString() + "/\\" + right.ToString() + ")";
@@ -285,6 +302,7 @@ namespace Natural_Deduction_Tool
         public IFormula Antecedent { get { return left; } }
         public IFormula Consequent { get { return right; } }
 
+        [DebuggerStepThrough]
         public Implication(IFormula l, IFormula r)
         {
             left = l;
@@ -325,6 +343,7 @@ namespace Natural_Deduction_Tool
             right.Collect(set);
         }
 
+        [DebuggerStepThrough]
         public override bool Equals(object obj)
         {
             if ((obj == null) || !GetType().Equals(obj.GetType()) || left == null)
@@ -337,11 +356,13 @@ namespace Natural_Deduction_Tool
             }
         }
 
+        [DebuggerStepThrough]
         public override int GetHashCode()
         {
             return ToString().GetHashCode();
         }
 
+        [DebuggerStepThrough]
         public override string ToString()
         {
             return "(" + left.ToString() + "->" + right.ToString() + ")";
@@ -354,6 +375,7 @@ namespace Natural_Deduction_Tool
         public IFormula Left { get { return left; } }
         public IFormula Right { get { return right; } }
 
+        [DebuggerStepThrough]
         public Iff(IFormula l, IFormula r)
         {
             left = l;
@@ -384,6 +406,7 @@ namespace Natural_Deduction_Tool
             right.Collect(set);
         }
 
+        [DebuggerStepThrough]
         public override bool Equals(object obj)
         {
             if ((obj == null) || !GetType().Equals(obj.GetType()))
@@ -396,11 +419,13 @@ namespace Natural_Deduction_Tool
             }
         }
 
+        [DebuggerStepThrough]
         public override int GetHashCode()
         {
             return ToString().GetHashCode();
         }
 
+        [DebuggerStepThrough]
         public override string ToString()
         {
             return "(" + left.ToString() + "<->" + right.ToString() + ")";

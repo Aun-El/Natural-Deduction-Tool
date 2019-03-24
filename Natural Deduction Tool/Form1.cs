@@ -16,6 +16,7 @@ namespace Natural_Deduction_Tool
         public Form1()
         {
             InitializeComponent();
+            ActiveControl = premiseTxt;
         }
 
         private void proveBut_Click(object sender, EventArgs e)

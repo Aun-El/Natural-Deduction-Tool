@@ -74,7 +74,7 @@
             this.proveBut.Name = "proveBut";
             this.proveBut.Size = new System.Drawing.Size(75, 23);
             this.proveBut.TabIndex = 11;
-            this.proveBut.Text = "Prove";
+            this.proveBut.Text = "&Prove";
             this.proveBut.UseVisualStyleBackColor = true;
             this.proveBut.Click += new System.EventHandler(this.proveBut_Click);
             // 

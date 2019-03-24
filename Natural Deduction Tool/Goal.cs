@@ -11,17 +11,24 @@ namespace Natural_Deduction_Tool
         public IFormula goal;
         public List<Goal> subGoals;
         public Goal parent;
+        public List<IFormula> Assumptions { get; set; }
+        public Derivation deriv;
         protected bool halfComplete;
         public bool Completed { get; protected set; }
+        public bool ProvedByContra { get; protected set; }
+        public bool NeedsChecking { get { return !Completed && (subGoals.Any() || !ProvedByContra); } }
 
         public Goal(IFormula form, Goal par)
         {
             goal = form;
             parent = par;
             subGoals = new List<Goal>();
+            Assumptions = new List<IFormula>();
             par.subGoals.Add(this);
             halfComplete = false;
             Completed = false;
+            ProvedByContra = false;
+            deriv = null;
         }
 
         public Goal(IFormula form)
@@ -29,8 +36,11 @@ namespace Natural_Deduction_Tool
             goal = form;
             parent = null;
             subGoals = new List<Goal>();
+            Assumptions = new List<IFormula>();
             halfComplete = false;
             Completed = false;
+            ProvedByContra = false;
+            deriv = null;
         }
 
         private List<Goal> DeriveSubgoals()
@@ -40,9 +50,9 @@ namespace Natural_Deduction_Tool
             //Any goal can be reached by modus ponens
             MPGoal newGoal = new MPGoal(new Implication(goal, true), this);
             //Check if any known implications have the new MP goal as their consequent
-            foreach(IFormula fact in Searcher.facts)
+            foreach (IFormula fact in Searcher.facts)
             {
-                if(fact is Implication)
+                if (fact is Implication)
                 {
                     Implication impl = fact as Implication;
                     if (impl.Consequent.Equals(goal))
@@ -192,6 +202,44 @@ namespace Natural_Deduction_Tool
                 return parent.Complete();
             }
         }
+
+        /// <summary>
+        /// Closes a branch by removing the goal this method was called from the list of subgoals of its parent, 
+        /// and closing the parent if it was not a disjunction goal.
+        /// </summary>
+        public virtual void CloseBranch()
+        {
+            if (parent != null && !subGoals.Any() && ProvedByContra)
+            {
+                parent.subGoals.Remove(this);
+                if (!ProvedByContra)
+                {
+                    return;
+                }
+                if (parent.subGoals.Any())
+                {
+                    if (!(parent.goal is Conjunction || parent.goal is Iff) || !parent.ProvedByContra)
+                    {
+                        return;
+                    }
+                    else
+                    {
+                        foreach (Goal subgoal in parent.subGoals)
+                        {
+                            if (subgoal is MPGoal)
+                            {
+                                return;
+                            }
+                        }
+                        parent.CloseBranch();
+                    }
+                }
+                else
+                {
+                    parent.CloseBranch();
+                }
+            }
+        }
     }
 
     public class MPGoal : Goal
@@ -204,6 +252,7 @@ namespace Natural_Deduction_Tool
             {
                 throw new Exception("Tried making a modus ponens goal out of a fully-formed implication.");
             }
+            ProvedByContra = true;
         }
 
         public override bool Complete()
@@ -219,12 +268,22 @@ namespace Natural_Deduction_Tool
                 return parent.DirectComplete();
             }
         }
+
+        public override void CloseBranch()
+        {
+            parent.subGoals.Remove(this);
+            if (!parent.subGoals.Any())
+            {
+                parent.CloseBranch();
+            }
+        }
     }
 
     public class ImplGoal : Goal
     {
         public ImplGoal(Implication form, Goal par) : base(form, par)
         {
+            ProvedByContra = true;
         }
 
         public override bool Complete()

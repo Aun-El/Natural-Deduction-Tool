@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -13,6 +14,11 @@ namespace Natural_Deduction_Tool
         public int Length { get; private set; }
         public List<Derivation> Children { get; }
 
+        //A list of assumptions that must be made when this derivation is added to the proof
+        //This list is only used during the MakeFrame phase.
+        //public List<IFormula> Assumptions { get; set; }
+
+        [DebuggerStepThrough]
         public Derivation(IFormula form, Origin orig)
         {
             Form = form;
@@ -73,6 +79,7 @@ namespace Natural_Deduction_Tool
         public Rules rule;
         public int depth;
 
+        [DebuggerStepThrough]
         public Origin(List<IFormula> orig, Rules rul, List<Derivation> par)
         {
             if (rul == Rules.HYPO || rul == Rules.ASS)
@@ -84,6 +91,7 @@ namespace Natural_Deduction_Tool
             parents = par;
         }
 
+        [DebuggerStepThrough]
         public Origin(Rules rul, int dpt = 0)
         {
             if(rul != Rules.HYPO && rul != Rules.ASS)
