@@ -15,7 +15,7 @@ namespace Natural_Deduction_Tool
         public Derivation deriv;
         protected bool halfComplete;
         public bool Completed { get; protected set; }
-        public bool ProvedByContra { get; protected set; }
+        public bool ProvedByContra { get; set; }
         public bool NeedsChecking { get { return !Completed && (subGoals.Any() || !ProvedByContra); } }
 
         public Goal(IFormula form, Goal par)
@@ -43,12 +43,17 @@ namespace Natural_Deduction_Tool
             deriv = null;
         }
 
-        private List<Goal> DeriveSubgoals()
+        private List<Goal> DeriveSubgoals(bool noContra)
         {
             List<Goal> output = new List<Goal>();
 
             //Any goal can be reached by modus ponens
-            MPGoal newGoal = new MPGoal(new Implication(goal, true), this);
+            MPGoal newMPGoal = new MPGoal(new Implication(goal, true), this);
+            //Or by an indirect proof
+            if (!ContraGoalAncestor() && !noContra)
+            {
+                ContraGoal newConGoal = new ContraGoal(goal, this);
+            }
             //Check if any known implications have the new MP goal as their consequent
             foreach (IFormula fact in Searcher.facts)
             {
@@ -57,8 +62,8 @@ namespace Natural_Deduction_Tool
                     Implication impl = fact as Implication;
                     if (impl.Consequent.Equals(goal))
                     {
-                        ImplGoal newImplGoal = new ImplGoal(impl, newGoal);
-                        newImplGoal.DeriveMPSubgoalTree();
+                        ImplGoal newImplGoal = new ImplGoal(impl, newMPGoal);
+                        newImplGoal.DeriveMPSubgoalTree(noContra);
                     }
                 }
             }
@@ -105,14 +110,14 @@ namespace Natural_Deduction_Tool
             return null;
         }
 
-        public void DeriveSubgoalTree()
+        public void DeriveSubgoalTree(bool noContra)
         {
             Queue<Goal> goals = new Queue<Goal>();
             goals.Enqueue(this);
             while (goals.Any())
             {
                 Goal current = goals.Dequeue();
-                List<Goal> subgoals = current.DeriveSubgoals();
+                List<Goal> subgoals = current.DeriveSubgoals(noContra);
                 if (subgoals != null)
                 {
                     foreach (Goal subgoal in subgoals)
@@ -123,7 +128,7 @@ namespace Natural_Deduction_Tool
             }
         }
 
-        public void DeriveMPSubgoalTree()
+        public void DeriveMPSubgoalTree(bool noContra)
         {
             Queue<Goal> goals = new Queue<Goal>();
             if (!(goal is Implication))
@@ -136,7 +141,7 @@ namespace Natural_Deduction_Tool
             while (goals.Any())
             {
                 Goal current = goals.Dequeue();
-                List<Goal> subgoals = current.DeriveSubgoals();
+                List<Goal> subgoals = current.DeriveSubgoals(noContra);
                 if (subgoals != null)
                 {
                     foreach (Goal subgoal in subgoals)
@@ -240,6 +245,57 @@ namespace Natural_Deduction_Tool
                 }
             }
         }
+
+        private bool MPGoalIsThisOrAncestor(MPGoal goal)
+        {
+            if (this is MPGoal)
+            {
+                Implication goalImpl = goal.goal as Implication;
+                Implication thisImpl = this.goal as Implication;
+                if (goalImpl.Consequent.Equals(thisImpl.Consequent))
+                {
+                    return true;
+                }
+                else
+                {
+                    if (parent != null)
+                    {
+                        return MPGoalIsThisOrAncestor(goal);
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+            }
+            else
+            {
+                if (parent != null)
+                {
+                    return MPGoalIsThisOrAncestor(goal);
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
+
+        public bool ContraGoalAncestor()
+        {
+            if(parent == null)
+            {
+                return false;
+            }
+            else
+            {
+                if(parent is ContraGoal)
+                {
+                    return true;
+                }
+                return parent.ContraGoalAncestor();
+            }
+        }
     }
 
     public class MPGoal : Goal
@@ -284,6 +340,40 @@ namespace Natural_Deduction_Tool
         public ImplGoal(Implication form, Goal par) : base(form, par)
         {
             ProvedByContra = true;
+        }
+
+        public override bool Complete()
+        {
+            Completed = true;
+            if (parent == null)
+            {
+                return true;
+            }
+            else
+            {
+                //subGoals.Clear();
+                return parent.DirectComplete();
+            }
+        }
+    }
+
+    public class ContraGoal : Goal
+    {
+        public Derivation contraDeriv;
+
+        public ContraGoal(IFormula form, Goal par) : base(form, par)
+        {
+            //A contragoal cannot be proven by an indirect proof (only the parent can be)
+            ProvedByContra = true;
+            contraDeriv = null;
+            Assumptions.Add(new Negation(par.goal));
+        }
+
+        public ContraGoal(IFormula form) : base(form)
+        {
+            //A contragoal cannot be proven by an indirect proof (only the parent can be)
+            ProvedByContra = true;
+            contraDeriv = null;
         }
 
         public override bool Complete()

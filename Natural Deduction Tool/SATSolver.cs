@@ -26,11 +26,9 @@ namespace Natural_Deduction_Tool
 
             if (variabeles.Count == 0)
                 return val;
-            // TODO: schrijf de methode die een Valuatie vindt die een formule vervult
             string p = GetElement(variabeles);
             variabeles.Remove(p);
 
-            // voeg toe met true
             val.Add(p, true);
 
             if (formula.PossiblyTrue(val))

@@ -89,6 +89,7 @@
             this.proofTxt.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
             this.proofTxt.Size = new System.Drawing.Size(639, 564);
             this.proofTxt.TabIndex = 6;
+            this.proofTxt.TabStop = false;
             // 
             // Form1
             // 

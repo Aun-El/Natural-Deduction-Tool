@@ -210,6 +210,11 @@ namespace Natural_Deduction_Tool
         /// <returns></returns>
         public bool ThisOrParent(Interval node)
         {
+            return ParentOrThis(node) || node.ParentOrThis(this);
+        }
+
+        private bool ParentOrThis(Interval node)
+        {
             if (this == node)
             {
                 return true;
@@ -315,6 +320,9 @@ namespace Natural_Deduction_Tool
                 case Rules.AND:
                     output.Append($@"/\ {HelpAnno()}");
                     break;
+                case Rules.MORG:
+                    output.Append($"De Morgan {lines[0]}");
+                    break;
             }
             return output.ToString();
         }
@@ -351,6 +359,7 @@ namespace Natural_Deduction_Tool
         BI,
         NEG,
         HYPO,
-        ASS
+        ASS,
+        MORG
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -99,6 +100,33 @@ namespace Natural_Deduction_Tool
                     {
                         disjs.Add(negForm.Formula as Disjunction);
                     }
+                }
+            }
+            else if(neg.Formula is Disjunction)
+            {
+                Disjunction disj = neg.Formula as Disjunction;
+                List<IFormula> orig = new List<IFormula>() { neg };
+                List<Derivation> derivPar = new List<Derivation>() { current };
+                Conjunction conj = new Conjunction(new Negation(disj.Left), new Negation(disj.Right));
+                Derivation newDeriv = new Derivation(conj, new Origin(orig, Rules.MORG, derivPar));
+                derivQueue.Enqueue(newDeriv, derivs);
+                if (!facts.Contains(conj))
+                {
+                    facts.Add(conj);
+                }
+            }
+            else if(neg.Formula is Conjunction)
+            {
+                Conjunction conj = neg.Formula as Conjunction;
+                List<IFormula> orig = new List<IFormula>() { neg };
+                List<Derivation> derivPar = new List<Derivation>() { current };
+                Disjunction disj = new Disjunction(new Negation(conj.Left), new Negation(conj.Right));
+                Derivation newDeriv = new Derivation(disj, new Origin(orig, Rules.MORG, derivPar));
+                derivQueue.Enqueue(newDeriv, derivs);
+                if (!facts.Contains(disj))
+                {
+                    facts.Add(disj);
+                    disjs.Add(disj);
                 }
             }
         }
@@ -202,6 +230,74 @@ namespace Natural_Deduction_Tool
                     }
                 }
             }
+        }
+
+        [DebuggerStepThrough]
+        private static void CheckImpls(Derivation current, HashSet<IFormula> facts, List<Implication> impls, List<Disjunction> disjs, List<Derivation> derivs, PriorityQueue derivQueue)
+        {
+            List<Implication> newImpls = new List<Implication>();
+            foreach (Implication impl in impls)
+            {
+                if (current.Form.Equals(impl.Antecedent))
+                {
+                    List<IFormula> orig = new List<IFormula>() { impl, current.Form };
+                    bool anteFound = false;
+                    List<Derivation> derivPar = new List<Derivation>();
+                    foreach (Derivation deriv in derivs)
+                    {
+                        if (deriv.Form.Equals(impl))
+                        {
+                            anteFound = true;
+                            derivPar.Add(deriv);
+                            break;
+                        }
+                    }
+                    if (!anteFound)
+                    {
+                        foreach (Derivation deriv in derivQueue.Queue)
+                        {
+                            if (deriv.Form.Equals(impl))
+                            {
+                                anteFound = true;
+                                derivPar.Add(deriv);
+                                break;
+                            }
+                        }
+                    }
+                    if (!anteFound)
+                    {
+                        foreach (Derivation deriv in Derivations)
+                        {
+                            if (deriv.Form.Equals(impl))
+                            {
+                                derivPar.Add(deriv);
+                                break;
+                            }
+                        }
+                    }
+                    derivPar.Add(current);
+                    Derivation newDeriv = new Derivation(impl.Consequent, new Origin(orig, Rules.IMP, derivPar));
+                    derivQueue.Enqueue(newDeriv, derivs);
+                    derivs.Add(newDeriv);
+                    if (!facts.Contains(impl.Consequent))
+                    {
+                        facts.Add(impl.Consequent);
+                        if (impl.Consequent is Implication)
+                        {
+                            newImpls.Add(impl.Consequent as Implication);
+                        }
+                        else if (impl.Consequent is Disjunction)
+                        {
+                            disjs.Add(impl.Consequent as Disjunction);
+                        }
+                    }
+                }
+                else
+                {
+                    newImpls.Add(impl);
+                }
+            }
+            impls = newImpls;
         }
     }
 }

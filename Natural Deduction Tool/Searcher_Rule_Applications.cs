@@ -155,7 +155,7 @@ namespace Natural_Deduction_Tool
             }
             foreach (Line line in frame.frame)
             {
-                if (line.Item1.Equals(impl.Antecedent) && implInt.ThisOrParent(line.Item2))
+                if (line.Item1.Equals(impl.Antecedent) && line.Item2.ThisOrParent(implInt))
                 {
                     List<IFormula> forms = new List<IFormula> { impl, impl.Antecedent };
                     Tuple<Frame, List<int>> newFrame = REI(frame, forms);
@@ -238,6 +238,34 @@ namespace Natural_Deduction_Tool
         {
             List<IFormula> forms = new List<IFormula>() { goal };
             return REI(frame, forms).Item1;
+        }
+
+        public static Frame ApplyMorg(Frame frame, Negation neg)
+        {
+            IFormula output = null;
+            if(neg.Formula is Disjunction)
+            {
+                Disjunction disj = neg.Formula as Disjunction;
+                output = new Conjunction(new Negation(disj.Left), new Negation(disj.Right));
+            }
+            else if (neg.Formula is Conjunction)
+            {
+                Conjunction conj = neg.Formula as Conjunction;
+                output = new Disjunction(new Negation(conj.Left), new Negation(conj.Right));
+            }
+            else
+            {
+                throw new Exception("Tried applying De Morgan on non-negation.");
+            }
+            Interval negInt = FindInt(frame, neg);
+            if (negInt == null)
+            {
+                throw new Exception("Tried applying De Morgan on non-existing negation.");
+            }
+            List<IFormula> forms = new List<IFormula> { neg };
+            Tuple<Frame, List<int>> newFrame = REI(frame, forms);
+            newFrame.Item1.AddForm(output, new Annotation(newFrame.Item2, Rules.MORG, true));
+            return newFrame.Item1;
         }
     }
 }

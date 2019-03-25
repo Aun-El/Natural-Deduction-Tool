@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -203,6 +205,101 @@ namespace Natural_Deduction_Tool
                 }
             }
             return interval;
+        }
+
+        [DebuggerStepThrough]
+        private static List<Implication> CloneStuff(List<Implication> input)
+        {
+            List<Implication> output = new List<Implication>();
+            foreach(Implication e in input)
+            {
+                output.Add(e);
+            }
+            return output;
+        }
+
+        [DebuggerStepThrough]
+        private static List<Disjunction> CloneStuff(List<Disjunction> input)
+        {
+            List<Disjunction> output = new List<Disjunction>();
+            foreach (Disjunction e in input)
+            {
+                output.Add(e);
+            }
+            return output;
+        }
+
+        [DebuggerStepThrough]
+        private static List<Derivation> CloneStuff(List<Derivation> input)
+        {
+            List<Derivation> output = new List<Derivation>();
+            foreach (Derivation e in input)
+            {
+                output.Add(e);
+            }
+            return output;
+        }
+
+        [DebuggerStepThrough]
+        private static HashSet<IFormula> CloneStuff(HashSet<IFormula> input)
+        {
+            HashSet<IFormula> output = new HashSet<IFormula>();
+            foreach (IFormula e in input)
+            {
+                output.Add(e);
+            }
+            return output;
+        }
+
+        private static Tuple<IFormula, IFormula> FindContra(IFormula negGoal, HashSet<IFormula> facts, List<Implication> impls, List<Disjunction> disjs, List<Derivation> derivs, int depth)
+        {
+            foreach (IFormula fact in facts)
+            {
+                if (!negGoal.Equals(fact) && fact is Negation)
+                {
+                    //Try to prove fact.Formula
+                    //There might be multiple negations that will lead to a contradiction if their formulas are proved
+                    //Check all and return only the shortest path
+                    HashSet<IFormula> newFacts = new HashSet<IFormula>();
+                    foreach (IFormula fact2 in facts)
+                    {
+                        newFacts.Add(fact2);
+                    }
+                    List<Implication> newImpls = new List<Implication>();
+                    foreach (Implication impl in Implications)
+                    {
+                        newImpls.Add(impl);
+                    }
+                    List<Disjunction> newDisjs = new List<Disjunction>();
+                    foreach (Disjunction newDisj in Disjunctions)
+                    {
+                        newDisjs.Add(newDisj);
+                    }
+                    List<Derivation> newDerivs = new List<Derivation>();
+
+                    Negation negFact = fact as Negation;
+                    Goal newGoal = new Goal(negFact.Formula);
+                    newGoal.DeriveSubgoalTree(true);
+
+                    if (facts.Contains(negFact.Formula))
+                    {
+                        //Contradiction has been shown
+                        return null;
+                    }
+                    else
+                    {
+                        ElimGoalSearchForContra(newGoal, negGoal, newFacts, newImpls, newDisjs, newDerivs, depth);
+
+                        if (newGoal.Completed)
+                        {
+                            //The proof worked out somehow
+                            //Attach it to the contragoal and complete it
+                            //Find some way to write the necessary steps into the proof
+                        }
+                    }
+                }
+            }
+            return null;
         }
     }
 }

@@ -34,7 +34,7 @@ namespace Natural_Deduction_Tool
 
             goal = new Goal(conclusion);
 
-            goal.DeriveSubgoalTree();
+            goal.DeriveSubgoalTree(false);
 
             Derivations = DeriveWithElim(premises, facts);
 
@@ -94,39 +94,67 @@ namespace Natural_Deduction_Tool
             if ((goal.parent != null && goal.parent.goal is Implication) || goal.goal is Disjunction)
             {
                 checkedWithElim = true;
-                HashSet<IFormula> newFacts = new HashSet<IFormula>();
-                foreach (IFormula fact in facts)
-                {
-                    newFacts.Add(fact);
-                }
-                List<Implication> newImpls = new List<Implication>();
-                foreach (Implication impl in Implications)
-                {
-                    newImpls.Add(impl);
-                }
-                List<Disjunction> newDisjs = new List<Disjunction>();
-                foreach (Disjunction newDisj in Disjunctions)
-                {
-                    newDisjs.Add(newDisj);
-                }
+                HashSet<IFormula> newFacts = CloneStuff(facts);
+                List<Implication> newImpls = CloneStuff(Implications);
+                List<Disjunction> newDisjs = CloneStuff(Disjunctions);
                 List<Derivation> newDerivs = new List<Derivation>();
-                ElimGoalSearch(goal, newFacts, newImpls, newDisjs, newDerivs, depth);
+                ElimGoalSearch(goal, newFacts, newImpls, newDisjs, newDerivs, depth, false);
+
+                if (Searcher.goal.Completed && !findWholeTree)
+                {
+                    return;
+                }
             }
 
-            if (Searcher.goal.Completed && !findWholeTree)
+            //Check if the goal can be proved by an indirect proof
+            if (goal is ContraGoal)
             {
-                return;
-            }
+                IFormula negGoal = null;
+                if (goal.goal is Negation)
+                {
+                    Negation neggedGoal = goal.goal as Negation;
+                    negGoal = neggedGoal.Formula;
+                }
+                else
+                {
+                    negGoal = new Negation(goal.goal);
+                }
+                HashSet<IFormula> newFacts = CloneStuff(facts);
+                List<Implication> newImpls = CloneStuff(Implications);
+                List<Disjunction> newDisjs = CloneStuff(Disjunctions);
+                List<Derivation> newDerivs = new List<Derivation>();
 
-            //TODO: Check goal by indirect proof
+                List<Derivation> contraDerivs = DeriveWithElim(new List<IFormula> { negGoal }, newFacts, newImpls, newDisjs, newDerivs);
 
-            if (Searcher.goal.Completed && !findWholeTree)
-            {
-                return;
+                //TODO: Refine FindContra
+                Tuple<IFormula, IFormula> contras = FindContra(negGoal, newFacts, newImpls, newDisjs, contraDerivs, depth);
+
+                if (contras != null)
+                {
+                    goal.Complete();
+                    goal.ProvedByContra = true;
+                    Derivation deriv1 = null;
+                    Derivation deriv2 = null;
+                    foreach (Derivation deriv in newDerivs)
+                    {
+                        if (deriv.Form.Equals(contras.Item1))
+                        {
+                            deriv1 = deriv;
+                        }
+                        if (deriv.Form.Equals(contras.Item2))
+                        {
+                            deriv2 = deriv;
+                        }
+                    }
+                }
+                if (Searcher.goal.Completed && !findWholeTree)
+                {
+                    return;
+                }
             }
 
             //Call DLS on all uncompleted subgoals if there are any, otherwise close this branch.
-            if (!checkedWithElim)
+            if (!checkedWithElim && !(goal is ContraGoal))
             {
                 List<Goal> setForRemoval = new List<Goal>();
                 if (goal.subGoals.Any())
@@ -262,7 +290,7 @@ namespace Natural_Deduction_Tool
                                 facts.Add(impl.Consequent);
                                 if (impl.Consequent is Implication)
                                 {
-                                    impls.Add(impl.Consequent as Implication);
+                                    newImpls.Add(impl.Consequent as Implication);
                                 }
                                 else if (impl.Consequent is Disjunction)
                                 {
@@ -461,7 +489,7 @@ namespace Natural_Deduction_Tool
                                 facts.Add(impl.Consequent);
                                 if (impl.Consequent is Implication)
                                 {
-                                    impls.Add(impl.Consequent as Implication);
+                                    newImpls.Add(impl.Consequent as Implication);
                                 }
                                 else if (impl.Consequent is Disjunction)
                                 {
@@ -535,12 +563,42 @@ namespace Natural_Deduction_Tool
             return output;
         }
 
-        private static void ElimGoalSearch(Goal goal, HashSet<IFormula> facts, List<Implication> impls, List<Disjunction> disjs, List<Derivation> derivs, int depth)
+        private static void ElimGoalSearch(Goal goal, HashSet<IFormula> facts, List<Implication> impls, List<Disjunction> disjs, List<Derivation> derivs, int depth, bool calledByContra)
         {
+            if (facts.Contains(goal.goal))
+            {
+                foreach (Derivation deriv in Derivations)
+                {
+                    if (deriv.Form.Equals(goal.goal))
+                    {
+                        goal.deriv = deriv;
+                        goal.Complete();
+                        return;
+                    }
+                }
+                foreach (Derivation deriv in derivs)
+                {
+                    if (deriv.Form.Equals(goal.goal))
+                    {
+                        goal.deriv = deriv;
+                        goal.Complete();
+                        return;
+                    }
+                }
+            }
             bool newAss = false;
             PriorityQueue derivQueue = new PriorityQueue();
 
-            if (goal.parent != null && goal.parent.goal is Implication)
+            if (goal is ContraGoal)
+            {
+                newAss = true;
+                derivLength++;
+                Derivation newDeriv = new Derivation(goal.goal, new Origin(Rules.ASS, derivLength));
+                derivQueue.Enqueue(newDeriv, derivs);
+                derivs.Add(newDeriv);
+                facts.Add(goal.goal);
+            }
+            else if (goal.parent != null && !(goal.parent is ImplGoal) && goal.parent.goal is Implication)
             {
                 newAss = true;
                 derivLength++;
@@ -554,7 +612,7 @@ namespace Natural_Deduction_Tool
             {
                 foreach (Disjunction disj in disjs)
                 {
-                    DisjElimGoalSearch(goal, disj, facts, impls, disjs, derivs, depth);
+                    DisjElimGoalSearch(goal, disj, facts, impls, disjs, derivs, depth, calledByContra);
                 }
                 if (goal.Completed)
                 {
@@ -604,57 +662,7 @@ namespace Natural_Deduction_Tool
                         derivs.Add(current);
                     }
 
-                    List<Implication> newImpls = new List<Implication>();
-                    foreach (Implication impl in impls)
-                    {
-                        if (current.Form.Equals(impl.Antecedent))
-                        {
-                            List<IFormula> orig = new List<IFormula>() { impl, current.Form };
-                            bool anteFound = false;
-                            List<Derivation> derivPar = new List<Derivation>();
-                            foreach (Derivation deriv in derivs)
-                            {
-                                if (deriv.Form.Equals(impl))
-                                {
-                                    anteFound = true;
-                                    derivPar.Add(deriv);
-                                    break;
-                                }
-                            }
-                            if (!anteFound)
-                            {
-                                foreach (Derivation deriv in derivQueue.Queue)
-                                {
-                                    if (deriv.Form.Equals(impl.Antecedent))
-                                    {
-                                        derivPar.Add(deriv);
-                                        break;
-                                    }
-                                }
-                            }
-                            derivPar.Add(current);
-                            Derivation newDeriv = new Derivation(impl.Consequent, new Origin(orig, Rules.IMP, derivPar));
-                            derivQueue.Enqueue(newDeriv, derivs);
-                            derivs.Add(newDeriv);
-                            if (!facts.Contains(impl.Consequent))
-                            {
-                                facts.Add(impl.Consequent);
-                                if (impl.Consequent is Implication)
-                                {
-                                    impls.Add(impl.Consequent as Implication);
-                                }
-                                else if (impl.Consequent is Disjunction)
-                                {
-                                    disjs.Add(impl.Consequent as Disjunction);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            newImpls.Add(impl);
-                        }
-                    }
-                    impls = newImpls;
+                    CheckImpls(current, facts, impls, disjs, derivs, derivQueue);
 
                     List<Disjunction> newDisjs = new List<Disjunction>();
                     foreach (Disjunction disj in disjs)
@@ -671,7 +679,7 @@ namespace Natural_Deduction_Tool
 
                 foreach (Disjunction disj in disjs)
                 {
-                    DisjElimGoalSearch(goal, disj, facts, impls, disjs, derivs, depth);
+                    DisjElimGoalSearch(goal, disj, facts, impls, disjs, derivs, depth, calledByContra);
                 }
                 if (goal.Completed)
                 {
@@ -680,36 +688,20 @@ namespace Natural_Deduction_Tool
             }
 
             List<Goal> setForRemoval = new List<Goal>();
-            if (goal.subGoals.Any())
+            if (!(goal is ContraGoal) && goal.subGoals.Any())
             {
                 if (depth < max_depth)
                 {
                     //Move down the goal tree
                     foreach (Goal subgoal in goal.subGoals)
                     {
-                        HashSet<IFormula> newFacts = new HashSet<IFormula>();
-                        foreach (IFormula fact in facts)
-                        {
-                            newFacts.Add(fact);
-                        }
-                        List<Implication> newImpls = new List<Implication>();
-                        foreach (Implication impl in impls)
-                        {
-                            newImpls.Add(impl);
-                        }
-                        List<Disjunction> newDisjs = new List<Disjunction>();
-                        foreach (Disjunction newDisj in disjs)
-                        {
-                            newDisjs.Add(newDisj);
-                        }
-                        List<Derivation> newDerivs = new List<Derivation>();
-                        foreach (Derivation deriv in derivs)
-                        {
-                            newDerivs.Add(deriv);
-                        }
+                        HashSet<IFormula> newFacts = CloneStuff(facts);
+                        List<Implication> newImpls = CloneStuff(impls);
+                        List<Disjunction> newDisjs = CloneStuff(disjs);
+                        List<Derivation> newDerivs = CloneStuff(derivs);
                         if (!(subgoal is MPGoal))
                         {
-                            ElimGoalSearch(subgoal, newFacts, newImpls, newDisjs, newDerivs, ++depth);
+                            ElimGoalSearch(subgoal, newFacts, newImpls, newDisjs, newDerivs, ++depth, calledByContra);
                         }
                         else
                         {
@@ -718,7 +710,7 @@ namespace Natural_Deduction_Tool
                                 foreach (Goal subsubgoal in subgoal.subGoals)
                                 {
                                     //ImplGoal always has one subgoal
-                                    ElimGoalSearch(subsubgoal, newFacts, newImpls, newDisjs, newDerivs, ++depth);
+                                    ElimGoalSearch(subsubgoal.subGoals[0], newFacts, newImpls, newDisjs, newDerivs, ++depth, calledByContra);
                                 }
                             }
                             else
@@ -738,7 +730,7 @@ namespace Natural_Deduction_Tool
                 }
                 return;
             }
-            else
+            else if (!(goal is ContraGoal))
             {
                 goal.CloseBranch();
                 if (newAss)
@@ -749,7 +741,150 @@ namespace Natural_Deduction_Tool
             }
         }
 
-        private static void ElimGoalSearchForDisj(Goal goal, IFormula disjunct, HashSet<IFormula> facts, List<Implication> impls, List<Disjunction> disjs, List<Derivation> derivs, int depth)
+        private static void ElimGoalSearchForContra(Goal goal, IFormula negAss, HashSet<IFormula> facts, List<Implication> impls, List<Disjunction> disjs, List<Derivation> derivs, int depth)
+        {
+            if (facts.Contains(goal.goal))
+            {
+                foreach (Derivation deriv in Derivations)
+                {
+                    if (deriv.Form.Equals(goal.goal))
+                    {
+                        goal.deriv = deriv;
+                        goal.Complete();
+                        return;
+                    }
+                }
+                foreach (Derivation deriv in derivs)
+                {
+                    if (deriv.Form.Equals(goal.goal))
+                    {
+                        goal.deriv = deriv;
+                        goal.Complete();
+                        return;
+                    }
+                }
+            }
+            PriorityQueue derivQueue = new PriorityQueue();
+
+            derivLength++;
+            Derivation negAssDeriv = new Derivation(negAss, new Origin(Rules.ASS, derivLength));
+            derivQueue.Enqueue(negAssDeriv, derivs);
+            derivs.Add(negAssDeriv);
+            facts.Add(negAss);
+
+            bool disjDeriv = true;
+
+            while (disjDeriv)
+            {
+                disjDeriv = false;
+
+                while (derivQueue.Any())
+                {
+                    Derivation current = derivQueue.Dequeue();
+                    if (current.Form.Equals(goal.goal))
+                    {
+                        goal.deriv = current;
+                        goal.Complete();
+                        derivLength--;
+                        return;
+                    }
+
+                    if (current.Form is Negation)
+                    {
+                        DeriveWithNegElim(current, facts, impls, disjs, derivs, derivQueue);
+                    }
+                    else if (current.Form is Conjunction)
+                    {
+                        DeriveWithConjElim(current, facts, impls, disjs, derivs, derivQueue);
+                    }
+                    else if (current.Form is Iff)
+                    {
+                        DeriveWithIffElim(current, facts, impls, disjs, derivs, derivQueue);
+                    }
+                    else if (current.Form is Implication)
+                    {
+                        DeriveWithImplElim(current, facts, impls, disjs, derivs, derivQueue);
+                    }
+
+                    if (current.Origin.rule != Rules.HYPO && current.Origin.rule != Rules.ASS)
+                    {
+                        derivs.Add(current);
+                    }
+
+                    CheckImpls(current, facts, impls, disjs, derivs, derivQueue);
+
+                    List<Disjunction> newDisjs = new List<Disjunction>();
+                    foreach (Disjunction disj in disjs)
+                    {
+                        if (!(facts.Contains(disj.Left) || facts.Contains(disj.Right)))
+                        {
+                            newDisjs.Add(disj);
+                        }
+                    }
+                    disjs = newDisjs;
+                }
+
+                //Check if anything can be done with disj-elim
+
+                foreach (Disjunction disj in disjs)
+                {
+                    DisjElimGoalSearch(goal, disj, facts, impls, disjs, derivs, depth, true);
+                }
+                if (goal.Completed)
+                {
+                    return;
+                }
+            }
+
+            List<Goal> setForRemoval = new List<Goal>();
+            if (goal.subGoals.Any())
+            {
+                if (depth < max_depth)
+                {
+                    //Move down the goal tree
+                    foreach (Goal subgoal in goal.subGoals)
+                    {
+                        HashSet<IFormula> newFacts = CloneStuff(facts);
+                        List<Implication> newImpls = CloneStuff(impls);
+                        List<Disjunction> newDisjs = CloneStuff(disjs);
+                        List<Derivation> newDerivs = CloneStuff(derivs);
+                        if (!(subgoal is MPGoal))
+                        {
+                            ElimGoalSearch(subgoal, newFacts, newImpls, newDisjs, newDerivs, ++depth, true);
+                        }
+                        else
+                        {
+                            if (subgoal.subGoals.Any())
+                            {
+                                foreach (Goal subsubgoal in subgoal.subGoals)
+                                {
+                                    //ImplGoal always has one subgoal
+                                    ElimGoalSearch(subsubgoal.subGoals[0], newFacts, newImpls, newDisjs, newDerivs, ++depth, true);
+                                }
+                            }
+                            else
+                            {
+                                setForRemoval.Add(subgoal);
+                            }
+                        }
+                    }
+                    foreach (Goal subgoal in setForRemoval)
+                    {
+                        subgoal.CloseBranch();
+                    }
+                }
+                derivLength--;
+                return;
+            }
+            else if (!(goal is ContraGoal))
+            {
+                goal.CloseBranch();
+                derivLength--;
+                return;
+            }
+        }
+
+        private static void ElimGoalSearchForDisj(Goal goal, IFormula disjunct, HashSet<IFormula> facts, List<Implication> impls, List<Disjunction> disjs, List<Derivation> derivs, int depth, bool calledByContra)
         {
             derivLength++;
             PriorityQueue derivQueue = new PriorityQueue();
@@ -796,57 +931,7 @@ namespace Natural_Deduction_Tool
                         derivs.Add(current);
                     }
 
-                    List<Implication> newImpls = new List<Implication>();
-                    foreach (Implication impl in impls)
-                    {
-                        if (current.Form.Equals(impl.Antecedent))
-                        {
-                            List<IFormula> orig = new List<IFormula>() { impl, current.Form };
-                            bool anteFound = false;
-                            List<Derivation> derivPar = new List<Derivation>();
-                            foreach (Derivation deriv in derivs)
-                            {
-                                if (deriv.Form.Equals(impl))
-                                {
-                                    anteFound = true;
-                                    derivPar.Add(deriv);
-                                    break;
-                                }
-                            }
-                            if (!anteFound)
-                            {
-                                foreach (Derivation deriv in derivQueue.Queue)
-                                {
-                                    if (deriv.Form.Equals(impl.Antecedent))
-                                    {
-                                        derivPar.Add(deriv);
-                                        break;
-                                    }
-                                }
-                            }
-                            derivPar.Add(current);
-                            Derivation newDeriv = new Derivation(impl.Consequent, new Origin(orig, Rules.IMP, derivPar));
-                            derivQueue.Enqueue(newDeriv, derivs);
-                            derivs.Add(newDeriv);
-                            if (!facts.Contains(impl.Consequent))
-                            {
-                                facts.Add(impl.Consequent);
-                                if (impl.Consequent is Implication)
-                                {
-                                    impls.Add(impl.Consequent as Implication);
-                                }
-                                else if (impl.Consequent is Disjunction)
-                                {
-                                    disjs.Add(impl.Consequent as Disjunction);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            newImpls.Add(impl);
-                        }
-                    }
-                    impls = newImpls;
+                    CheckImpls(current, facts, impls, disjs, derivs, derivQueue);
 
                     List<Disjunction> newDisjs = new List<Disjunction>();
                     foreach (Disjunction disj in disjs)
@@ -860,10 +945,9 @@ namespace Natural_Deduction_Tool
                 }
 
                 //Check if anything can be done with disj-elim
-
                 foreach (Disjunction disj in disjs)
                 {
-                    DisjElimGoalSearch(goal, disj, facts, impls, disjs, derivs, depth);
+                    DisjElimGoalSearch(goal, disj, facts, impls, disjs, derivs, depth, calledByContra);
                 }
                 if (goal.Completed)
                 {
@@ -879,29 +963,13 @@ namespace Natural_Deduction_Tool
                     //Move down the goal tree
                     foreach (Goal subgoal in goal.subGoals)
                     {
-                        HashSet<IFormula> newFacts = new HashSet<IFormula>();
-                        foreach (IFormula fact in facts)
-                        {
-                            newFacts.Add(fact);
-                        }
-                        List<Implication> newImpls = new List<Implication>();
-                        foreach (Implication impl in impls)
-                        {
-                            newImpls.Add(impl);
-                        }
-                        List<Disjunction> newDisjs = new List<Disjunction>();
-                        foreach (Disjunction newDisj in disjs)
-                        {
-                            newDisjs.Add(newDisj);
-                        }
-                        List<Derivation> newDerivs = new List<Derivation>();
-                        foreach (Derivation deriv in derivs)
-                        {
-                            newDerivs.Add(deriv);
-                        }
+                        HashSet<IFormula> newFacts = CloneStuff(facts);
+                        List<Implication> newImpls = CloneStuff(impls);
+                        List<Disjunction> newDisjs = CloneStuff(disjs);
+                        List<Derivation> newDerivs = CloneStuff(derivs);
                         if (!(subgoal is MPGoal))
                         {
-                            ElimGoalSearchForDisj(subgoal, disjunct, newFacts, newImpls, newDisjs, newDerivs, ++depth);
+                            ElimGoalSearchForDisj(subgoal, disjunct, newFacts, newImpls, newDisjs, newDerivs, ++depth, calledByContra);
                         }
                         else
                         {
@@ -910,7 +978,7 @@ namespace Natural_Deduction_Tool
                                 foreach (Goal subsubgoal in subgoal.subGoals)
                                 {
                                     //ImplGoal always has one subgoal
-                                    ElimGoalSearchForDisj(subsubgoal, disjunct, newFacts, newImpls, newDisjs, newDerivs, ++depth);
+                                    ElimGoalSearchForDisj(subsubgoal, disjunct, newFacts, newImpls, newDisjs, newDerivs, ++depth, calledByContra);
                                 }
                             }
                             else
@@ -927,7 +995,7 @@ namespace Natural_Deduction_Tool
                 derivLength--;
                 return;
             }
-            else
+            else if (!(goal is ContraGoal))
             {
                 goal.CloseBranch();
                 derivLength--;
@@ -935,7 +1003,7 @@ namespace Natural_Deduction_Tool
             }
         }
 
-        private static void DisjElimGoalSearch(Goal goal, Disjunction disj, HashSet<IFormula> facts, List<Implication> impls, List<Disjunction> disjs, List<Derivation> derivs, int depth)
+        private static void DisjElimGoalSearch(Goal goal, Disjunction disj, HashSet<IFormula> facts, List<Implication> impls, List<Disjunction> disjs, List<Derivation> derivs, int depth, bool calledByContra)
         {
             derivLength++;
 
@@ -968,10 +1036,10 @@ namespace Natural_Deduction_Tool
                 rightDerivs.Add(deriv);
             }
             Goal leftGoal = new Goal(goal.goal);
-            leftGoal.DeriveSubgoalTree();
+            leftGoal.DeriveSubgoalTree(calledByContra);
             Goal rightGoal = new Goal(goal.goal);
-            rightGoal.DeriveSubgoalTree();
-            ElimGoalSearchForDisj(leftGoal, disj.Left, leftFacts, leftImpls, leftDisjs, leftDerivs, depth);
+            rightGoal.DeriveSubgoalTree(calledByContra);
+            ElimGoalSearchForDisj(leftGoal, disj.Left, leftFacts, leftImpls, leftDisjs, leftDerivs, depth, calledByContra);
 
             if (disj.Left.Equals(disj.Right))
             {
@@ -979,22 +1047,55 @@ namespace Natural_Deduction_Tool
             }
             else
             {
-                ElimGoalSearchForDisj(rightGoal, disj.Right, rightFacts, rightImpls, rightDisjs, rightDerivs, depth);
+                ElimGoalSearchForDisj(rightGoal, disj.Right, rightFacts, rightImpls, rightDisjs, rightDerivs, depth, calledByContra);
             }
 
             if (leftGoal.Completed && rightGoal.Completed)
             {
-                //TODO: Search down the goal trees for the one with an attached deriv
                 //Combine those two derivs in a new deriv which can be applied to the goal
-                List<Derivation> par = new List<Derivation> { leftGoal.deriv, rightGoal.deriv };
+                Queue<Goal> queue = new Queue<Goal>();
+                queue.Enqueue(leftGoal);
+
+                Derivation leftDeriv = null;
+                Derivation rightDeriv = null;
+                while (queue.Any())
+                {
+                    Goal current = queue.Dequeue();
+                    if (current.deriv != null && current.Completed)
+                    {
+                        leftDeriv = current.deriv;
+                        break;
+                    }
+                    foreach (Goal subgoal in current.subGoals)
+                    {
+                        queue.Enqueue(subgoal);
+                    }
+                }
+                queue.Clear();
+                queue.Enqueue(rightGoal);
+                while (queue.Any())
+                {
+                    Goal current = queue.Dequeue();
+                    if (current.deriv != null && current.Completed)
+                    {
+                        rightDeriv = current.deriv;
+                        break;
+                    }
+                    foreach (Goal subgoal in current.subGoals)
+                    {
+                        queue.Enqueue(subgoal);
+                    }
+                }
+
+                List<Derivation> par = new List<Derivation> { leftDeriv, rightDeriv };
                 List<IFormula> orig = new List<IFormula> { disj };
                 Derivation newDeriv = new Derivation(goal.goal, new Origin(orig, Rules.OR, par));
-                if (goal.deriv != null)
+                if (goal.deriv == null)
                 {
                     goal.deriv = newDeriv;
                     goal.Complete();
                 }
-                if (goal.deriv.Length > newDeriv.Length)
+                else if (goal.deriv.Length > newDeriv.Length)
                 {
                     goal.deriv = newDeriv;
                 }
@@ -1071,17 +1172,43 @@ namespace Natural_Deduction_Tool
             }
             if (noCompleteChildren)
             {
-                //A leaf is reached
-
-                foreach (Derivation deriv in derivs)
+                if (current.goal is Disjunction)
                 {
-                    if (deriv.Form.Equals(current.goal))
+                    //This disjunction has been proven through a disjunction
+                    //TODO: Sort out this mess
+                    Disjunction disj = current.goal as Disjunction;
+                    Disjunction origDisj = current.deriv.Origin.origins[0] as Disjunction;
+                    Derivation leftDeriv = current.deriv.Origin.parents[0];
+                    Derivation rightDeriv = current.deriv.Origin.parents[1];
+
+                    if (!disj.Left.Equals(leftDeriv.Form))
                     {
-                        if (!derivStack.Contains(deriv))
+                        //Put subgoals on stack
+                        assumptions.Add(origDisj.Left);
+                        StackGoals(current.subGoals[0], output, derivStack, derivs, assumptions);
+                        assumptions.Remove(origDisj.Left);
+                    }
+                    if (!disj.Right.Equals(rightDeriv.Form))
+                    {
+                        //Put subgoals on stack
+                        assumptions.Add(origDisj.Right);
+                        StackGoals(current.subGoals[1], output, derivStack, derivs, assumptions);
+                        assumptions.Remove(origDisj.Right);
+                    }
+                }
+                else
+                {
+                    //A leaf is reached
+                    foreach (Derivation deriv in derivs)
+                    {
+                        if (deriv.Form.Equals(current.goal))
                         {
-                            derivStack.Push(deriv);
+                            if (!derivStack.Contains(deriv))
+                            {
+                                derivStack.Push(deriv);
+                            }
+                            break;
                         }
-                        break;
                     }
                 }
             }
@@ -1099,10 +1226,36 @@ namespace Natural_Deduction_Tool
             }
             else if (completeMP != null)
             {
-                StackGoals(completeMP, output, derivStack, derivs, assumptions);
+                int min_length = int.MaxValue;
+                ImplGoal completeImpl = null;
+                foreach (ImplGoal ig in completeMP.subGoals)
+                {
+                    if (ig.Completed)
+                    {
+                        if (completeImpl == null)
+                        {
+                            min_length = BranchLength(ig, 0);
+                            completeImpl = ig;
+                        }
+                        else
+                        {
+                            int temp = BranchLength(ig, 0);
+                            if (temp < min_length)
+                            {
+                                min_length = temp;
+                                completeImpl = ig;
+                            }
+                        }
+                    }
+                }
+                StackGoals(completeImpl, output, derivStack, derivs, assumptions);
             }
             else if (completeGoal != null)
             {
+                if (halfCompleteGoal != null)
+                {
+                    StackGoals(halfCompleteGoal, output, derivStack, derivs, assumptions);
+                }
                 StackGoals(completeGoal, output, derivStack, derivs, assumptions);
             }
 
@@ -1210,7 +1363,7 @@ namespace Natural_Deduction_Tool
                 }
             }
 
-            if (!buildOrderDeriv.Any() && buildOrder.Count == 1)
+            if (output.ReturnFacts().Contains(goal.goal) && !buildOrderDeriv.Any() && buildOrder.Count == 1)
             {
                 //The conclusion is one of the premises
                 //Only reiterate
@@ -1311,14 +1464,24 @@ namespace Natural_Deduction_Tool
                         }
                         output = ApplyDisjElim(output, orig, current.Form);
                         break;
+                    case Rules.MORG:
+                        output = ApplyMorg(output, current.Origin.origins[0] as Negation);
+                        break;
                 }
             }
 
             while (buildOrder.Any())
             {
                 Goal current = buildOrder.Pop();
-                if (current.deriv != null)
+                if (current.deriv != null && !output.ReturnFacts().Contains(current.goal))
                 {
+                    foreach (IFormula form in current.Assumptions)
+                    {
+                        if (!output.ReturnFacts().Contains(form))
+                        {
+                            output.AddAss(form);
+                        }
+                    }
                     List<Derivation> temp = new List<Derivation> { current.deriv };
                     current.deriv = null;
                     output = MakeFrame(output, temp, current);
@@ -1387,7 +1550,7 @@ namespace Natural_Deduction_Tool
                     if (mpg.consequent.Equals(impl.Consequent))
                     {
                         ImplGoal newGoal = new ImplGoal(impl, mpg);
-                        newGoal.DeriveMPSubgoalTree();
+                        newGoal.DeriveMPSubgoalTree(false);
                     }
                 }
                 foreach (Goal subgoal in current.subGoals)
