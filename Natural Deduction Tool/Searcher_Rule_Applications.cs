@@ -8,8 +8,12 @@ namespace Natural_Deduction_Tool
 {
     public partial class Searcher
     {
-        public static Frame ApplyNegIntro(Frame frame, IFormula negation, IFormula contra1, IFormula contra2)
+        public static Frame ApplyNegIntro(Frame frame, IFormula negation, IFormula contra1, Negation contra2)
         {
+            if (!contra2.Formula.Equals(contra1))
+            {
+                throw new Exception("Tried applying NegIntro on non-conflicting proposition.");
+            }
             Tuple<Interval, Interval, Interval> negInt = FindInt(frame, negation, contra1, contra2);
             if (negInt.Item1 == null || negInt.Item2 == null || negInt.Item3 == null)
             {
@@ -175,7 +179,7 @@ namespace Natural_Deduction_Tool
             }
             List<IFormula> forms = new List<IFormula> { left, right };
             Tuple<Frame, List<int>> newFrame = REI(frame, forms);
-            newFrame.Item1.AddForm(new Iff(left, right), new Annotation(newFrame.Item2, Rules.BI, true));
+            newFrame.Item1.AddForm(new Iff(left.Antecedent, right.Antecedent), new Annotation(newFrame.Item2, Rules.BI, true));
             return newFrame.Item1;
         }
 

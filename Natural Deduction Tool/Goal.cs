@@ -47,27 +47,6 @@ namespace Natural_Deduction_Tool
         {
             List<Goal> output = new List<Goal>();
 
-            //Any goal can be reached by modus ponens
-            MPGoal newMPGoal = new MPGoal(new Implication(goal, true), this);
-            //Or by an indirect proof
-            if (!ContraGoalAncestor() && !noContra)
-            {
-                ContraGoal newConGoal = new ContraGoal(goal, this);
-            }
-            //Check if any known implications have the new MP goal as their consequent
-            foreach (IFormula fact in Searcher.facts)
-            {
-                if (fact is Implication)
-                {
-                    Implication impl = fact as Implication;
-                    if (impl.Consequent.Equals(goal))
-                    {
-                        ImplGoal newImplGoal = new ImplGoal(impl, newMPGoal);
-                        newImplGoal.DeriveMPSubgoalTree(noContra);
-                    }
-                }
-            }
-
             //Negations or propVars cannot be further divided.            
 
             if (goal is Conjunction)
@@ -101,6 +80,33 @@ namespace Natural_Deduction_Tool
                 {
                     output.Add(new Goal(new Implication(iff.Right, iff.Left), this));
                 }
+            }
+
+            //Any goal can be reached by modus ponens
+            Implication MPForm = new Implication(goal, true);
+            if (!MPGoalAncestor(MPForm))
+            {
+                MPGoal newMPGoal = new MPGoal(MPForm, this);
+
+                //Check if any known implications have the new MP goal as their consequent
+                foreach (IFormula fact in Searcher.facts)
+                {
+                    if (fact is Implication)
+                    {
+                        Implication impl = fact as Implication;
+                        if (impl.Consequent.Equals(goal))
+                        {
+                            ImplGoal newImplGoal = new ImplGoal(impl, newMPGoal);
+                            newImplGoal.DeriveMPSubgoalTree(noContra);
+                        }
+                    }
+                }
+            }
+            //Or by an indirect proof
+            if (!ContraGoalAncestor() && !noContra)
+            {
+                ContraGoal newConGoal = new ContraGoal(goal, this);
+
             }
 
             if (output.Any())
@@ -246,50 +252,32 @@ namespace Natural_Deduction_Tool
             }
         }
 
-        private bool MPGoalIsThisOrAncestor(MPGoal goal)
+        private bool MPGoalAncestor(Implication goal)
         {
-            if (this is MPGoal)
+            if (parent == null)
             {
-                Implication goalImpl = goal.goal as Implication;
-                Implication thisImpl = this.goal as Implication;
-                if (goalImpl.Consequent.Equals(thisImpl.Consequent))
+                return false;
+            }
+            if (parent is MPGoal)
+            {
+                Implication impl = parent.goal as Implication;
+                if (goal.Consequent.Equals(impl.Consequent))
                 {
                     return true;
                 }
-                else
-                {
-                    if (parent != null)
-                    {
-                        return MPGoalIsThisOrAncestor(goal);
-                    }
-                    else
-                    {
-                        return false;
-                    }
-                }
             }
-            else
-            {
-                if (parent != null)
-                {
-                    return MPGoalIsThisOrAncestor(goal);
-                }
-                else
-                {
-                    return false;
-                }
-            }
+            return parent.MPGoalAncestor(goal);
         }
 
         public bool ContraGoalAncestor()
         {
-            if(parent == null)
+            if (parent == null)
             {
                 return false;
             }
             else
             {
-                if(parent is ContraGoal)
+                if (parent is ContraGoal)
                 {
                     return true;
                 }
@@ -389,5 +377,34 @@ namespace Natural_Deduction_Tool
                 return parent.DirectComplete();
             }
         }
+    }
+
+    public class DisjGoal : Goal
+    {
+        //This goal exists solely to help write a disjunction proved in another disjunction to the screen
+        //It plays no part in the actual reasoning whatsoever
+        public Disjunction provenIn;
+        public Derivation leftDeriv;
+        public Derivation rightDeriv;
+
+        public DisjGoal(IFormula form, Goal par) : base(form, par)
+        {
+            
+        }
+
+        public override bool Complete()
+        {
+            Completed = true;
+            if (parent == null)
+            {
+                return true;
+            }
+            else
+            {
+                //subGoals.Clear();
+                return parent.DirectComplete();
+            }
+        }
+
     }
 }

@@ -13,10 +13,17 @@ namespace Natural_Deduction_Tool
 {
     public partial class Form1 : Form
     {
+        bool premiseTxtActive;
         public Form1()
         {
+            premiseTxtActive = true;
             InitializeComponent();
             ActiveControl = premiseTxt;
+            NegButton.Text = "\u00AC";
+            DisjButton.Text = "\u2228";
+            ConjButton.Text = "\u2227";
+            ImplButton.Text = "\u2192";
+            IffButton.Text = "\u2194";
         }
 
         private void proveBut_Click(object sender, EventArgs e)
@@ -117,6 +124,101 @@ namespace Natural_Deduction_Tool
             {
                 proofTxt.Text = "Please enter a conclusion.";
             }
+
+        }
+
+        private void PremiseTxt_GotFocus(object sender, EventArgs e)
+        {
+            premiseTxtActive = true;
+        }
+
+        private void ConclTxt_GotFocus(object sender, EventArgs e)
+        {
+            premiseTxtActive = false;
+        }
+
+        private void NegButton_Click(object sender, EventArgs e)
+        {
+            if (premiseTxtActive)
+            {
+                premiseTxt.Text += "-";
+                premiseTxt.Focus();
+                premiseTxt.Select(premiseTxt.Text.Length, premiseTxt.Text.Length);
+            }
+            else
+            {
+                conclTxt.Text += "-";
+                conclTxt.Focus();
+                conclTxt.Select(conclTxt.Text.Length, conclTxt.Text.Length);
+            }
+        }
+
+        private void DisjButton_Click(object sender, EventArgs e)
+        {
+            if (premiseTxtActive)
+            {
+                premiseTxt.Text += @"\/";
+                premiseTxt.Focus();
+                premiseTxt.Select(premiseTxt.Text.Length, premiseTxt.Text.Length);
+            }
+            else
+            {
+                conclTxt.Text += @"\/";
+                conclTxt.Focus();
+                conclTxt.Select(conclTxt.Text.Length, conclTxt.Text.Length);
+            }
+        }
+
+        private void ConjButton_Click(object sender, EventArgs e)
+        {
+            if (premiseTxtActive)
+            {
+                premiseTxt.Text += @"/\";
+                premiseTxt.Focus();
+                premiseTxt.Select(premiseTxt.Text.Length, premiseTxt.Text.Length);
+            }
+            else
+            {
+                conclTxt.Text += @"/\";
+                conclTxt.Focus();
+                conclTxt.Select(conclTxt.Text.Length, conclTxt.Text.Length);
+            }
+        }
+
+        private void ImplButton_Click(object sender, EventArgs e)
+        {
+            if (premiseTxtActive)
+            {
+                premiseTxt.Text += "->";
+                premiseTxt.Focus();
+                premiseTxt.Select(premiseTxt.Text.Length, premiseTxt.Text.Length);
+            }
+            else
+            {
+                conclTxt.Text += "->";
+                conclTxt.Focus();
+                conclTxt.Select(conclTxt.Text.Length, conclTxt.Text.Length);
+            }
+        }
+
+        private void IffButton_Click(object sender, EventArgs e)
+        {
+            if (premiseTxtActive)
+            {
+                premiseTxt.Text += "<->";
+                premiseTxt.Focus();
+                premiseTxt.Select(premiseTxt.Text.Length, premiseTxt.Text.Length);
+            }
+            else
+            {
+                conclTxt.Text += "<->";
+                conclTxt.Focus();
+                conclTxt.Select(conclTxt.Text.Length, conclTxt.Text.Length);
+            }
+        }
+
+        private void ProofTxt_GotFocus(object sender, EventArgs e)
+        {
 
         }
     }

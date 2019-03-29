@@ -57,7 +57,7 @@ namespace Natural_Deduction_Tool
                 cursor++;
                 return resultaat;
             }
-            else if (cursor < length && ((content[cursor] == '-' && content[cursor + 1] != '>') || content[cursor] == '!' || content[cursor] == '~'))
+            else if (cursor < length && ((content[cursor] == '-' && content[cursor + 1] != '>') || content[cursor] == '!' || content[cursor] == '~' || content[cursor] == '\u00AC'))
             {
                 cursor++;
                 IFormula n = ParseFactor();
@@ -84,6 +84,12 @@ namespace Natural_Deduction_Tool
                 IFormula t = ParseTerm();
                 return MakeConjunction(f, t);
             }
+            else if(cursor < length - 1 && content[cursor] == '\u2227')
+            {
+                cursor += 1;
+                IFormula t = ParseTerm();
+                return MakeConjunction(f, t);
+            }
             return f;
         }
 
@@ -94,6 +100,12 @@ namespace Natural_Deduction_Tool
             if (cursor < length - 1 && (content[cursor] == '\\' && content[cursor + 1] == '/' || content[cursor] == '|' && content[cursor + 1] == '|'))
             {
                 cursor += 2;
+                IFormula e = ParseIff();
+                return MakeDisjunction(t, e);
+            }
+            else if (cursor < length - 1 && content[cursor] == '\u2228')
+            {
+                cursor += 1;
                 IFormula e = ParseIff();
                 return MakeDisjunction(t, e);
             }
@@ -110,6 +122,12 @@ namespace Natural_Deduction_Tool
                 IFormula e = ParseIff();
                 return MakeIff(i, e);
             }
+            else if (cursor < length - 1 && content[cursor] == '\u2194')
+            {
+                cursor += 1;
+                IFormula e = ParseIff();
+                return MakeIff(i, e);
+            }
             return i;
         }
 
@@ -120,6 +138,12 @@ namespace Natural_Deduction_Tool
             if (cursor < length - 1 && content[cursor] == '-' && content[cursor + 1] == '>')
             {
                 cursor += 2;
+                IFormula i = ParseIff();
+                return MakeImplication(e, i);
+            }
+            else if (cursor < length - 1 && content[cursor] == '\u2192')
+            {
+                cursor += 1;
                 IFormula i = ParseIff();
                 return MakeImplication(e, i);
             }

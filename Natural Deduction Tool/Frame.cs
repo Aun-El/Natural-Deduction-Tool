@@ -223,7 +223,7 @@ namespace Natural_Deduction_Tool
             {
                 if (node.parent != null)
                 {
-                    return ThisOrParent(node.parent);
+                    return ParentOrThis(node.parent);
                 }
                 else
                 {

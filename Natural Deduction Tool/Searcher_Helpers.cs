@@ -251,7 +251,7 @@ namespace Natural_Deduction_Tool
             return output;
         }
 
-        private static Tuple<IFormula, IFormula> FindContra(IFormula negGoal, HashSet<IFormula> facts, List<Implication> impls, List<Disjunction> disjs, List<Derivation> derivs, int depth)
+        private static void FindContra(ContraGoal contraGoal, IFormula negGoal, HashSet<IFormula> facts, List<Implication> impls, List<Disjunction> disjs, List<Derivation> derivs, int depth)
         {
             foreach (IFormula fact in facts)
             {
@@ -281,10 +281,30 @@ namespace Natural_Deduction_Tool
                     Goal newGoal = new Goal(negFact.Formula);
                     newGoal.DeriveSubgoalTree(true);
 
+                    foreach(Derivation deriv in derivs)
+                    {
+                        if(negFact.Equals(deriv.Form) && (deriv.Origin.rule != Rules.ASS || deriv.Origin.rule != Rules.HYPO))
+                        {
+                            contraGoal.contraDeriv = deriv;
+                            break;
+                        }
+                    }
+
                     if (facts.Contains(negFact.Formula))
                     {
                         //Contradiction has been shown
-                        return null;
+                        foreach(Derivation deriv in derivs)
+                        {
+                            if (deriv.Form.Equals(negFact.Formula))
+                            {
+                                newGoal.deriv = deriv;
+                                break;
+                            }
+                        }
+                        newGoal.Complete();
+                        contraGoal.subGoals.Add(newGoal);
+                        contraGoal.Complete();
+                        return;
                     }
                     else
                     {
@@ -295,11 +315,58 @@ namespace Natural_Deduction_Tool
                             //The proof worked out somehow
                             //Attach it to the contragoal and complete it
                             //Find some way to write the necessary steps into the proof
+
+                            contraGoal.subGoals.Add(newGoal);
+                            contraGoal.Complete();
+
                         }
                     }
                 }
             }
-            return null;
+            return;
+        }
+
+        private static IFormula NegForm(IFormula form)
+        {
+            IFormula output = null;
+            if (form is Negation)
+            {
+                Negation neggedGoal = form as Negation;
+                output = neggedGoal.Formula;
+            }
+            else
+            {
+                output = new Negation(form);
+            }
+            return output;
+        }
+
+        private static void FindShortestSubgoal(Goal goal)
+        {
+            int max_length = 0;
+            Goal shortest = null;
+            foreach (Goal subgoal in goal.subGoals)
+            {
+                if (subgoal.Completed)
+                {
+                    if (shortest == null)
+                    {
+                        max_length = BranchLength(subgoal, 0);
+                        shortest = subgoal;
+                    }
+                    else
+                    {
+                        int temp = BranchLength(subgoal, 0);
+                        if (temp < max_length)
+                        {
+                            max_length = temp;
+                            shortest = subgoal;
+                        }
+                    }
+                }
+            }
+            goal.subGoals.Clear();
+            goal.subGoals.Add(shortest);
         }
     }
 }

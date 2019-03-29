@@ -68,6 +68,7 @@
     <Compile Include="SATSolver.cs" />
     <Compile Include="Searcher.cs" />
     <Compile Include="Searcher_Derivation_Methods.cs" />
+    <Compile Include="Searcher_Frame_Maker.cs" />
     <Compile Include="Searcher_Helpers.cs" />
     <Compile Include="Searcher_Rule_Applications.cs" />
     <Compile Include="Valuation.cs" />
