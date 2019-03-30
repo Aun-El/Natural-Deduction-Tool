@@ -28,103 +28,122 @@ namespace Natural_Deduction_Tool
 
         private void proveBut_Click(object sender, EventArgs e)
         {
+            List<IFormula> premises = SetupPremises();
+            IFormula conclusion = SetupConclusion();
+            if (conclusion != null)
+            {
+                if (SATCheck(premises, conclusion))
+                {
+                    proofTxt.Text = Searcher.Prove(premises, conclusion);
+                }
+            }
+        }
+
+        private void selfProveBut_Click(object sender, EventArgs e)
+        {
+            List<IFormula> premises = SetupPremises();
+            IFormula conclusion = SetupConclusion();
+            if (conclusion != null)
+            {
+                if (SATCheck(premises, conclusion))
+                {
+                    premiseTxt.Enabled = false;
+                    premiseTxt.TabStop = false;
+                    conclTxt.Enabled = false;
+                    conclTxt.TabStop = false;
+                    Writer.Initialize(premises, this);
+                    Writer.Write();
+                }
+            }
+        }
+
+        private List<IFormula> SetupPremises()
+        {
             List<IFormula> premises = new List<IFormula>();
             if (premiseTxt.Text != "")
             {
                 foreach (string s in premiseTxt.Text.Split(','))
                 {
                     try { premises.Add(FormParser.ParseFormula(s.Trim())); }
-                    catch { proofTxt.Text = "Please enter valid premises."; }
+                    catch { proofTxt.Text = "Please enter well-formed premises."; }
                 }
             }
+            return premises;
+        }
+
+        private IFormula SetupConclusion()
+        {
+            IFormula conclusion = null;
             if (conclTxt.Text.Trim() != "")
             {
-                bool validConcl = false;
-                IFormula conclusion = null;
                 try
                 {
                     conclusion = FormParser.ParseFormula(conclTxt.Text.Trim());
-                    validConcl = true;
                 }
-                catch { proofTxt.Text = "Please enter a valid conclusion."; }
-
-                if (validConcl)
-                {
-                    if(premises.Count == 1)
-                    {
-                        Valuation val = SATSolver.Satisfiable(premises[0]);
-                        if (val == null)
-                        {
-                            //Contradiction in premises
-                            proofTxt.Text = "Contradiction in the premises.";
-                        }
-                        else
-                        {
-
-                            Conjunction conjoined = new Conjunction(premises[0], new Negation(conclusion));
-                            val = SATSolver.Satisfiable(conjoined);
-                            if (val != null)
-                            {
-                                proofTxt.Text = "This conclusion does not follow from these premises.";
-                            }
-                            else
-                            {
-                                proofTxt.Text = Searcher.Prove(premises, conclusion);
-                            }
-                        }
-                    }
-                    else if (premises.Count > 1)
-                    {
-                        List<IFormula> conjoining = new List<IFormula>();
-                        foreach (IFormula form in premises)
-                        {
-                            conjoining.Add(form);
-                        }
-
-                        //Check if the premises are UNSAT. If so, derive the conclusion from the falsum.
-                        Conjunction conjoined = Conjunction.Conjoin(conjoining);
-                        Valuation val = SATSolver.Satisfiable(conjoined);
-
-                        if (val == null)
-                        {
-                            //Contradiction in premises
-                            proofTxt.Text = "Contradiction in the premises.";
-                        }
-                        else
-                        {
-
-                            conjoined = new Conjunction(conjoined, new Negation(conclusion));
-                            val = SATSolver.Satisfiable(conjoined);
-                            if (val != null)
-                            {
-                                proofTxt.Text = "This conclusion does not follow from these premises.";
-                            }
-                            else
-                            {
-                                proofTxt.Text = Searcher.Prove(premises, conclusion);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        Negation negConcl = new Negation(conclusion);
-                        Valuation val = SATSolver.Satisfiable(negConcl);
-                        if (val != null)
-                        {
-                            proofTxt.Text = "This conclusion is not a tautology.";
-                        }
-                        else
-                        {
-                            proofTxt.Text = Searcher.Prove(premises, conclusion);
-                        }
-                    }
-                }
+                catch { proofTxt.Text = "Please enter a well-formed conclusion."; }
             }
             else
             {
                 proofTxt.Text = "Please enter a conclusion.";
             }
+            return conclusion;
+        }
 
+        private bool SATCheck(List<IFormula> premises, IFormula conclusion)
+        {
+            if (premises.Count == 1)
+            {
+                Valuation val = SATSolver.Satisfiable(premises[0]);
+                Conjunction conjoined = new Conjunction(premises[0], new Negation(conclusion));
+                val = SATSolver.Satisfiable(conjoined);
+                if (val != null)
+                {
+                    proofTxt.Text = "This conclusion does not follow from these premises.";
+                    return false;
+                }
+                else
+                {
+                    return true;
+                }
+            }
+            else if (premises.Count > 1)
+            {
+                List<IFormula> conjoining = new List<IFormula>();
+                foreach (IFormula form in premises)
+                {
+                    conjoining.Add(form);
+                }
+
+                //Check if the premises are UNSAT. If so, derive the conclusion from the falsum.
+                Conjunction conjoined = Conjunction.Conjoin(conjoining);
+                Valuation val = SATSolver.Satisfiable(conjoined);
+
+                conjoined = new Conjunction(conjoined, new Negation(conclusion));
+                val = SATSolver.Satisfiable(conjoined);
+                if (val != null)
+                {
+                    proofTxt.Text = "This conclusion does not follow from these premises.";
+                    return false;
+                }
+                else
+                {
+                    return true;
+                }
+            }
+            else
+            {
+                Negation negConcl = new Negation(conclusion);
+                Valuation val = SATSolver.Satisfiable(negConcl);
+                if (val != null)
+                {
+                    proofTxt.Text = "This conclusion is not a tautology.";
+                    return false;
+                }
+                else
+                {
+                    return true;
+                }
+            }
         }
 
         private void PremiseTxt_GotFocus(object sender, EventArgs e)
@@ -215,11 +234,6 @@ namespace Natural_Deduction_Tool
                 conclTxt.Focus();
                 conclTxt.Select(conclTxt.Text.Length, conclTxt.Text.Length);
             }
-        }
-
-        private void ProofTxt_GotFocus(object sender, EventArgs e)
-        {
-
         }
     }
 }

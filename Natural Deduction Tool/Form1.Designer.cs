@@ -49,6 +49,7 @@
             this.varButton8 = new System.Windows.Forms.Button();
             this.varButton7 = new System.Windows.Forms.Button();
             this.varButton6 = new System.Windows.Forms.Button();
+            this.selfProveBut = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // premiseTxt
@@ -87,9 +88,9 @@
             // 
             // proveBut
             // 
-            this.proveBut.Location = new System.Drawing.Point(79, 111);
+            this.proveBut.Location = new System.Drawing.Point(532, 39);
             this.proveBut.Name = "proveBut";
-            this.proveBut.Size = new System.Drawing.Size(88, 35);
+            this.proveBut.Size = new System.Drawing.Size(124, 35);
             this.proveBut.TabIndex = 11;
             this.proveBut.Text = "&Prove";
             this.proveBut.UseVisualStyleBackColor = true;
@@ -298,11 +299,22 @@
             this.varButton6.UseVisualStyleBackColor = true;
             this.varButton6.Visible = false;
             // 
+            // selfProveBut
+            // 
+            this.selfProveBut.Location = new System.Drawing.Point(677, 39);
+            this.selfProveBut.Name = "selfProveBut";
+            this.selfProveBut.Size = new System.Drawing.Size(124, 35);
+            this.selfProveBut.TabIndex = 27;
+            this.selfProveBut.Text = "&Let me prove";
+            this.selfProveBut.UseVisualStyleBackColor = true;
+            this.selfProveBut.Click += new System.EventHandler(this.selfProveBut_Click);
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(847, 675);
+            this.Controls.Add(this.selfProveBut);
             this.Controls.Add(this.varButton0);
             this.Controls.Add(this.varButton9);
             this.Controls.Add(this.varButton8);
@@ -332,7 +344,6 @@
         }
 
         #endregion
-        private ReadOnlyTextBox proofTxt;
         private System.Windows.Forms.TextBox premiseTxt;
         private System.Windows.Forms.TextBox conclTxt;
         private System.Windows.Forms.Label premLabel;
@@ -353,6 +364,8 @@
         private System.Windows.Forms.Button varButton8;
         private System.Windows.Forms.Button varButton7;
         private System.Windows.Forms.Button varButton6;
+        private System.Windows.Forms.Button selfProveBut;
+        public ReadOnlyTextBox proofTxt;
     }
 }
 
