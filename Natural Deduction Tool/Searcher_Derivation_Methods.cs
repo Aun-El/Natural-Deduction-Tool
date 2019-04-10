@@ -102,7 +102,7 @@ namespace Natural_Deduction_Tool
                     }
                 }
             }
-            else if(neg.Formula is Disjunction)
+            else if (neg.Formula is Disjunction)
             {
                 Disjunction disj = neg.Formula as Disjunction;
                 List<IFormula> orig = new List<IFormula>() { neg };
@@ -115,7 +115,7 @@ namespace Natural_Deduction_Tool
                     facts.Add(conj);
                 }
             }
-            else if(neg.Formula is Conjunction)
+            else if (neg.Formula is Conjunction)
             {
                 Conjunction conj = neg.Formula as Conjunction;
                 List<IFormula> orig = new List<IFormula>() { neg };
@@ -128,6 +128,26 @@ namespace Natural_Deduction_Tool
                     facts.Add(disj);
                     disjs.Add(disj);
                 }
+            }
+            else if (neg.Formula is Implication)
+            {
+                Implication impl = neg.Formula as Implication;
+                List<IFormula> orig = new List<IFormula>() { neg };
+                List<Derivation> derivPar = new List<Derivation>() { current };
+                Conjunction conj = null;
+                if (impl.Consequent is Negation)
+                {
+                    Negation negCons = impl.Consequent as Negation;
+                    conj = new Conjunction(impl.Antecedent, negCons.Formula);
+                }
+                else
+                {
+                    conj = new Conjunction(impl.Antecedent, new Negation(impl.Consequent));
+                }
+
+                Derivation newDeriv = new Derivation(conj, new Origin(orig, Rules.NegImplToConj, derivPar));
+                derivQueue.Enqueue(newDeriv, derivs);
+                facts.Add(conj);
             }
         }
         private static void DeriveWithConjElim(Derivation current, HashSet<IFormula> facts, List<Implication> impls, List<Disjunction> disjs, List<Derivation> derivs, PriorityQueue derivQueue)
@@ -215,6 +235,17 @@ namespace Natural_Deduction_Tool
                         }
                     }
                 }
+                if (!anteFound)
+                {
+                    foreach (Derivation deriv in Derivations)
+                    {
+                        if (deriv.Form.Equals(impl.Antecedent))
+                        {
+                            derivPar.Add(deriv);
+                            break;
+                        }
+                    }
+                }
                 Derivation newDeriv = new Derivation(impl.Consequent, new Origin(orig, Rules.IMP, derivPar));
                 derivQueue.Enqueue(newDeriv, derivs);
                 if (!facts.Contains(impl.Consequent))
@@ -229,6 +260,45 @@ namespace Natural_Deduction_Tool
                         disjs.Add(impl.Consequent as Disjunction);
                     }
                 }
+            }
+            else
+            {
+                Disjunction disj = new Disjunction(new Negation(impl.Antecedent), impl.Consequent);
+                Disjunction disjMirror = new Disjunction(impl.Consequent, new Negation(impl.Antecedent));
+                List<IFormula> orig = new List<IFormula>() { impl };
+                List<Derivation> derivPar = new List<Derivation>() { current };
+                Derivation newDeriv = new Derivation(disj, new Origin(orig, Rules.ImplToDisj, derivPar));
+                derivQueue.Enqueue(newDeriv, derivs);
+                if (!facts.Contains(disj) && !facts.Contains(disjMirror))
+                {
+                    disjs.Add(disj);
+                    facts.Add(disj);
+                }
+            }
+        }
+
+        private static void DeriveImplFromDisj(Derivation current, HashSet<IFormula> facts, List<Implication> impls, List<Disjunction> disjs, List<Derivation> derivs, PriorityQueue derivQueue)
+        {
+            Disjunction disj = current.Form as Disjunction;
+
+            Implication impl = null;
+            if (disj.Left is Negation)
+            {
+                Negation neg = disj.Left as Negation;
+                impl = new Implication(neg.Formula, disj.Right);
+            }
+            else
+            {
+                impl = new Implication(new Negation(disj.Left), disj.Right);
+            }
+            List<IFormula> orig = new List<IFormula>() { disj };
+            List<Derivation> derivPar = new List<Derivation>() { current };
+            Derivation newDeriv = new Derivation(impl, new Origin(orig, Rules.DisjToImpl, derivPar));
+            derivQueue.Enqueue(newDeriv, derivs);
+            if (!facts.Contains(impl))
+            {
+                impls.Add(impl);
+                facts.Add(impl);
             }
         }
 

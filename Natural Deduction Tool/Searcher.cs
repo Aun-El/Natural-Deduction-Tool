@@ -19,9 +19,9 @@ namespace Natural_Deduction_Tool
         private static int derivLength;
         private static int max_depth;
 
-        public static string Prove(List<IFormula> premises, IFormula conclusion)
+        public static string Prove(List<IFormula> premises, IFormula conclusion, bool findTree)
         {
-            findWholeTree = false;
+            findWholeTree = findTree;
             max_depth = 0;
             derivLength = 0;
             if (!premises.Any())
@@ -53,30 +53,65 @@ namespace Natural_Deduction_Tool
                 {
                     if (MatchGoal(deriv.Form, current))
                     {
-                        Frame output = new Frame(premises);
-                        output = MakeFrame(output, Derivations, goal);
-                        return output.ToString();
+                        if (!findWholeTree)
+                        {
+                            Frame output = new Frame(premises);
+                            output = MakeFrame(output, Derivations, goal);
+                            if (output.Last.Item1.Equals(goal.goal) && output.Last.Item2.parent == null)
+                            { return output.ToString(); }
+                            else
+                            {
+                                return "I could not prove this (yet).";
+                            }
+                        }
+
                     }
                 }
-                if (!current.Completed)
+                if (!current.Completed || !findWholeTree)
                 {
                     foreach (Goal subgoal in current.subGoals)
                     {
-                        goalQueue.Enqueue(subgoal);
+                        if (!subgoal.Completed)
+                        {
+                            goalQueue.Enqueue(subgoal);
+                        }
                     }
                 }
             }
 
             //Step 5: Go down the goal tree with Iterative deepening search
 
-            while (goal.subGoals.Any())
+            while (goal.subGoals.Any() && max_depth < 10000)
             {
+                //The restriction on max_depth is a fail-safe to prevent infinite looping
+                //But it should not be necessary anymore
                 DLS(goal, 0);
-                if (goal.Completed)
+                if (goal.Completed && !findWholeTree)
                 {
                     Frame output = new Frame(premises);
                     output = MakeFrame(output, Derivations, goal);
-                    return output.ToString();
+                    if (output.Last.Item1.Equals(goal.goal) && output.Last.Item2.parent == null)
+                    { return output.ToString(); }
+                    else
+                    {
+                        return "I could not prove this (yet).";
+                    }
+                }
+                else if(goal.Completed)
+                {
+                    bool allSubgoalsCompl = true;
+                    foreach(Goal subgoal in goal.subGoals)
+                    {
+                        if (!subgoal.Completed)
+                        {
+                            allSubgoalsCompl = false;
+                            break;
+                        }
+                    }
+                    if (allSubgoalsCompl)
+                    {
+                        return "Graph complete";
+                    }
                 }
                 max_depth++;
             }
@@ -113,31 +148,34 @@ namespace Natural_Deduction_Tool
             //Check if the goal can be proved by an indirect proof
             if (goal is ContraGoal)
             {
-                IFormula negGoal = NegForm(goal.goal);
-
-                if (facts.Contains(negGoal))
+                ContraGoal cg = goal as ContraGoal;
+                if (goal.subGoals.Any() || !cg.expanded)
                 {
-                    //The (non-)negation was already known
-                    goal.Complete();
-                }
-                else
-                {
-                    HashSet<IFormula> newFacts = CloneStuff(facts);
-                    List<Implication> newImpls = CloneStuff(Implications);
-                    List<Disjunction> newDisjs = CloneStuff(Disjunctions);
-                    List<Derivation> newDerivs = new List<Derivation>();
+                    IFormula negGoal = NegForm(goal.goal);
 
-                    List<Derivation> contraDerivs = DeriveWithElim(new List<IFormula> { negGoal }, newFacts, newImpls, newDisjs, newDerivs);
+                    if (facts.Contains(negGoal))
+                    {
+                        //The (non-)negation was already known
+                        goal.Complete();
+                    }
+                    else
+                    {
+                        HashSet<IFormula> newFacts = CloneStuff(facts);
+                        List<Implication> newImpls = CloneStuff(Implications);
+                        List<Disjunction> newDisjs = CloneStuff(Disjunctions);
+                        List<Derivation> newDerivs = new List<Derivation>();
 
-                    //TODO: Refine FindContra
-                    FindContra(goal as ContraGoal, negGoal, newFacts, newImpls, newDisjs, contraDerivs, depth);
+                        List<Derivation> contraDerivs = DeriveWithElim(new List<IFormula> { negGoal }, newFacts, newImpls, newDisjs, newDerivs);
 
-                    goal.ProvedByContra = true;
-                }
+                        FindContra(goal as ContraGoal, negGoal, newFacts, newImpls, newDisjs, contraDerivs, depth);
 
-                if (Searcher.goal.Completed && !findWholeTree)
-                {
-                    return;
+                        goal.ProvedByContra = true;
+                    }
+
+                    if (Searcher.goal.Completed && !findWholeTree)
+                    {
+                        return;
+                    }
                 }
             }
 
@@ -180,6 +218,10 @@ namespace Natural_Deduction_Tool
                                 if (Searcher.goal.Completed && !findWholeTree)
                                 {
                                     return;
+                                }
+                                if (!subgoal.subGoals.Any())
+                                {
+                                    setForRemoval.Add(subgoal);
                                 }
                             }
                         }
@@ -257,6 +299,10 @@ namespace Natural_Deduction_Tool
                     else if (current.Form is Implication)
                     {
                         DeriveWithImplElim(current, facts, impls, disjs, output, derivQueue);
+                    }
+                    else if (current.Form is Disjunction)
+                    {
+                        DeriveImplFromDisj(current, facts, impls, disjs, output, derivQueue);
                     }
 
                     if (current.Origin.rule != Rules.HYPO && current.Origin.rule != Rules.ASS)
@@ -676,7 +722,7 @@ namespace Natural_Deduction_Tool
             }
 
             List<Goal> setForRemoval = new List<Goal>();
-            if (!(goal is ContraGoal) && goal.subGoals.Any())
+            if (goal.subGoals.Any())
             {
                 if (depth < max_depth)
                 {
@@ -691,7 +737,7 @@ namespace Natural_Deduction_Tool
                         {
                             ElimGoalSearch(subgoal, newFacts, newImpls, newDisjs, newDerivs, ++depth, calledByContra);
                         }
-                        else if(subgoal is MPGoal)
+                        else if (subgoal is MPGoal)
                         {
                             if (subgoal.subGoals.Any())
                             {
@@ -718,8 +764,6 @@ namespace Natural_Deduction_Tool
                             else
                             {
                                 List<Derivation> contraDerivs = DeriveWithElim(new List<IFormula> { negGoal }, newFacts, newImpls, newDisjs, newDerivs);
-
-                                //TODO: Refine FindContra
                                 FindContra(subgoal as ContraGoal, negGoal, newFacts, newImpls, newDisjs, contraDerivs, depth);
 
                                 subgoal.ProvedByContra = true;
@@ -737,7 +781,7 @@ namespace Natural_Deduction_Tool
                 }
                 return;
             }
-            else if (!(goal is ContraGoal))
+            else
             {
                 goal.CloseBranch();
                 if (newAss)
@@ -881,9 +925,8 @@ namespace Natural_Deduction_Tool
                     }
                 }
                 derivLength--;
-                return;
             }
-            else if (!(goal is ContraGoal))
+            else
             {
                 goal.CloseBranch();
                 derivLength--;
@@ -1116,9 +1159,9 @@ namespace Natural_Deduction_Tool
                 }
 
                 List<Goal> newSubgoals = new List<Goal>();
-                foreach(Goal subgoal in goal.subGoals)
+                foreach (Goal subgoal in goal.subGoals)
                 {
-                    if(subgoal is MPGoal || subgoal is ContraGoal)
+                    if (subgoal is MPGoal || subgoal is ContraGoal)
                     {
                         newSubgoals.Add(subgoal);
                     }

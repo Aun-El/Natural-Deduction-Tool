@@ -365,6 +365,15 @@ namespace Natural_Deduction_Tool
                     case Rules.MORG:
                         output = ApplyMorg(output, current.Origin.origins[0] as Negation);
                         break;
+                    case Rules.ImplToDisj:
+                        output = ApplyImplToDisj(output, current.Origin.origins[0] as Implication);
+                        break;
+                    case Rules.DisjToImpl:
+                        output = ApplyDisjToImpl(output, current.Origin.origins[0] as Disjunction);
+                        break;
+                    case Rules.NegImplToConj:
+                        output = ApplyNegImplToConj(output, current.Origin.origins[0] as Negation);
+                        break;
                 }
             }
 
@@ -448,9 +457,14 @@ namespace Natural_Deduction_Tool
                         }*/
 
                         output = ApplyNegIntro(output, ass, current.subGoals[0].goal, new Negation(current.subGoals[0].goal));
+                        Goal nextGoal = buildOrder.Pop();
+                        if (!output.Last.Item1.Equals(nextGoal.goal))
+                        {
+                            output = ApplyNegElim(output, output.Last.Item1 as Negation);
+                        }
                     }
                 }
-                if (current is ImplGoal)
+                else if (current is ImplGoal)
                 {
                     Implication impl = current.goal as Implication;
                     if (!output.ReturnFacts().Contains(impl.Consequent))
@@ -459,14 +473,14 @@ namespace Natural_Deduction_Tool
                     }
                     continue;
                 }
-                if (current is DisjGoal)
+                else if (current is DisjGoal)
                 {
                     DisjGoal disjG = current as DisjGoal;
                     Disjunction origDisj = disjG.provenIn;
                     IFormula disj = disjG.goal;
                     output = ApplyDisjElim(output, origDisj, disj);
                 }
-                if (current.goal is Disjunction)
+                else if (current.goal is Disjunction)
                 {
                     Disjunction disj = current.goal as Disjunction;
                     if (!output.ReturnFacts().Contains(disj))
@@ -496,7 +510,7 @@ namespace Natural_Deduction_Tool
                             bool assFound = false;
                             foreach (Line line in output.frame)
                             {
-                                if (impl.Antecedent.Equals(line.Item1) && line.Item3.rule != Rules.HYPO && output.Last.Item2.ThisOrParent(line.Item2))
+                                if (impl.Antecedent.Equals(line.Item1) && line.Item3.rule != Rules.HYPO && line.Item2.ThisOrParent(output.Last.Item2))
                                 {
                                     assFound = true;
                                     break;

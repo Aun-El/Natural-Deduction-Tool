@@ -284,6 +284,25 @@ namespace Natural_Deduction_Tool
                 return parent.ContraGoalAncestor();
             }
         }
+
+        private bool GoalAncestor(Goal checkGoal)
+        {
+            if(parent == null)
+            {
+                return false;
+            }
+            else
+            {
+                if (goal.Equals(checkGoal.goal))
+                {
+                    return true;
+                }
+                else
+                {
+                    return parent.GoalAncestor(checkGoal);
+                }
+            }
+        }
     }
 
     public class MPGoal : Goal
@@ -348,6 +367,7 @@ namespace Natural_Deduction_Tool
     public class ContraGoal : Goal
     {
         public Derivation contraDeriv;
+        public bool expanded;
 
         public ContraGoal(IFormula form, Goal par) : base(form, par)
         {
@@ -355,6 +375,7 @@ namespace Natural_Deduction_Tool
             ProvedByContra = true;
             contraDeriv = null;
             Assumptions.Add(new Negation(par.goal));
+            expanded = false;
         }
 
         public ContraGoal(IFormula form) : base(form)
@@ -362,6 +383,7 @@ namespace Natural_Deduction_Tool
             //A contragoal cannot be proven by an indirect proof (only the parent can be)
             ProvedByContra = true;
             contraDeriv = null;
+            expanded = false;
         }
 
         public override bool Complete()
@@ -406,5 +428,13 @@ namespace Natural_Deduction_Tool
             }
         }
 
+    }
+
+    public class DisjImplGoal : Goal
+    {
+        public DisjImplGoal(Implication form, Goal par) : base(form, par)
+        {
+
+        }
     }
 }

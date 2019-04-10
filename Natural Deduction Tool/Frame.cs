@@ -22,7 +22,7 @@ namespace Natural_Deduction_Tool
         {
             frame = new List<Line>();
             DerivedFrames = new List<Frame>();
-            Interval currentNode = new Interval();
+            Interval currentNode = new Interval(0);
             foreach (IFormula premise in premises)
             {
                 /*if (currentNode != null)
@@ -40,7 +40,7 @@ namespace Natural_Deduction_Tool
 
         public void AddAss(IFormula form)
         {
-            Interval newNode = new Interval(frame.Last().Item2);
+            Interval newNode = new Interval(frame.Last().Item2, frame.Count);
             Annotation anno = new Annotation(Rules.ASS);
 
             frame.Add(new Line(form, newNode, anno));
@@ -49,7 +49,7 @@ namespace Natural_Deduction_Tool
 
         public void AddAss(IFormula form, Interval interval)
         {
-            Interval newNode = new Interval(interval);
+            Interval newNode = new Interval(interval, frame.Count);
             Annotation anno = new Annotation(Rules.ASS);
 
             frame.Add(new Line(form, newNode, anno));
@@ -191,14 +191,17 @@ namespace Natural_Deduction_Tool
     {
         public Interval parent;
         public List<IFormula> facts;
+        public int startLine;
 
-        public Interval()
+        public Interval(int start)
         {
+            startLine = start;
             facts = new List<IFormula>();
         }
 
-        public Interval(Interval par)
+        public Interval(Interval par, int start)
         {
+            startLine = start;
             facts = new List<IFormula>();
             parent = par;
         }
@@ -210,11 +213,6 @@ namespace Natural_Deduction_Tool
         /// <returns></returns>
         public bool ThisOrParent(Interval node)
         {
-            return ParentOrThis(node) || node.ParentOrThis(this);
-        }
-
-        private bool ParentOrThis(Interval node)
-        {
             if (this == node)
             {
                 return true;
@@ -223,7 +221,7 @@ namespace Natural_Deduction_Tool
             {
                 if (node.parent != null)
                 {
-                    return ParentOrThis(node.parent);
+                    return ThisOrParent(node.parent);
                 }
                 else
                 {
@@ -323,6 +321,15 @@ namespace Natural_Deduction_Tool
                 case Rules.MORG:
                     output.Append($"De Morgan {lines[0]}");
                     break;
+                case Rules.ImplToDisj:
+                    output.Append($"ImplToDisj {lines[0]}");
+                    break;
+                case Rules.DisjToImpl:
+                    output.Append($"DisjToImpl {lines[0]}");
+                    break;
+                case Rules.NegImplToConj:
+                    output.Append($"NegImplToConj {lines[0]}");
+                    break;
             }
             return output.ToString();
         }
@@ -360,6 +367,10 @@ namespace Natural_Deduction_Tool
         NEG,
         HYPO,
         ASS,
-        MORG
+        MORG,
+        DisjToImpl,
+        ImplToDisj,
+        NegImplToConj,
+        ConjToNegImpl
     }
 }

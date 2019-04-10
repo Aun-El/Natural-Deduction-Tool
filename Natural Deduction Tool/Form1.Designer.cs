@@ -33,7 +33,6 @@
             this.premLabel = new System.Windows.Forms.Label();
             this.conclLabel = new System.Windows.Forms.Label();
             this.proveBut = new System.Windows.Forms.Button();
-            this.proofTxt = new Natural_Deduction_Tool.ReadOnlyTextBox();
             this.NegButton = new System.Windows.Forms.Button();
             this.DisjButton = new System.Windows.Forms.Button();
             this.ConjButton = new System.Windows.Forms.Button();
@@ -50,6 +49,7 @@
             this.varButton7 = new System.Windows.Forms.Button();
             this.varButton6 = new System.Windows.Forms.Button();
             this.selfProveBut = new System.Windows.Forms.Button();
+            this.proofTxt = new Natural_Deduction_Tool.ReadOnlyTextBox();
             this.SuspendLayout();
             // 
             // premiseTxt
@@ -95,19 +95,6 @@
             this.proveBut.Text = "&Prove";
             this.proveBut.UseVisualStyleBackColor = true;
             this.proveBut.Click += new System.EventHandler(this.proveBut_Click);
-            // 
-            // proofTxt
-            // 
-            this.proofTxt.Cursor = System.Windows.Forms.Cursors.IBeam;
-            this.proofTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.proofTxt.Location = new System.Drawing.Point(196, 99);
-            this.proofTxt.Multiline = true;
-            this.proofTxt.Name = "proofTxt";
-            this.proofTxt.ReadOnly = true;
-            this.proofTxt.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.proofTxt.Size = new System.Drawing.Size(639, 564);
-            this.proofTxt.TabIndex = 6;
-            this.proofTxt.TabStop = false;
             // 
             // NegButton
             // 
@@ -309,11 +296,24 @@
             this.selfProveBut.UseVisualStyleBackColor = true;
             this.selfProveBut.Click += new System.EventHandler(this.selfProveBut_Click);
             // 
+            // proofTxt
+            // 
+            this.proofTxt.Cursor = System.Windows.Forms.Cursors.IBeam;
+            this.proofTxt.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.proofTxt.Location = new System.Drawing.Point(196, 99);
+            this.proofTxt.Multiline = true;
+            this.proofTxt.Name = "proofTxt";
+            this.proofTxt.ReadOnly = true;
+            this.proofTxt.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
+            this.proofTxt.Size = new System.Drawing.Size(639, 564);
+            this.proofTxt.TabIndex = 6;
+            this.proofTxt.TabStop = false;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(847, 675);
+            this.ClientSize = new System.Drawing.Size(847, 673);
             this.Controls.Add(this.selfProveBut);
             this.Controls.Add(this.varButton0);
             this.Controls.Add(this.varButton9);
@@ -344,11 +344,8 @@
         }
 
         #endregion
-        private System.Windows.Forms.TextBox premiseTxt;
-        private System.Windows.Forms.TextBox conclTxt;
         private System.Windows.Forms.Label premLabel;
         private System.Windows.Forms.Label conclLabel;
-        private System.Windows.Forms.Button proveBut;
         private System.Windows.Forms.Button NegButton;
         private System.Windows.Forms.Button DisjButton;
         private System.Windows.Forms.Button ConjButton;
@@ -364,8 +361,11 @@
         private System.Windows.Forms.Button varButton8;
         private System.Windows.Forms.Button varButton7;
         private System.Windows.Forms.Button varButton6;
-        private System.Windows.Forms.Button selfProveBut;
         public ReadOnlyTextBox proofTxt;
+        public System.Windows.Forms.TextBox premiseTxt;
+        public System.Windows.Forms.TextBox conclTxt;
+        public System.Windows.Forms.Button proveBut;
+        public System.Windows.Forms.Button selfProveBut;
     }
 }
 

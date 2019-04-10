@@ -70,6 +70,11 @@ namespace Natural_Deduction_Tool
                 child.RecalcLength();
             }
         }
+
+        public override string ToString()
+        {
+            return Form.ToString();
+        }
     }
 
     public class Origin

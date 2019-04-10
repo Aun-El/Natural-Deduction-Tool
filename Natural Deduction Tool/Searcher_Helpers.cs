@@ -211,7 +211,7 @@ namespace Natural_Deduction_Tool
         private static List<Implication> CloneStuff(List<Implication> input)
         {
             List<Implication> output = new List<Implication>();
-            foreach(Implication e in input)
+            foreach (Implication e in input)
             {
                 output.Add(e);
             }
@@ -253,9 +253,10 @@ namespace Natural_Deduction_Tool
 
         private static void FindContra(ContraGoal contraGoal, IFormula negGoal, HashSet<IFormula> facts, List<Implication> impls, List<Disjunction> disjs, List<Derivation> derivs, int depth)
         {
-            foreach (IFormula fact in facts)
+            if (contraGoal.subGoals.Any())
             {
-                if (!negGoal.Equals(fact) && fact is Negation)
+                List<Goal> subGoalsToSave = new List<Goal>();
+                foreach (Goal subgoal in contraGoal.subGoals)
                 {
                     //Try to prove fact.Formula
                     //There might be multiple negations that will lead to a contradiction if their formulas are proved
@@ -277,51 +278,200 @@ namespace Natural_Deduction_Tool
                     }
                     List<Derivation> newDerivs = new List<Derivation>();
 
-                    Negation negFact = fact as Negation;
-                    Goal newGoal = new Goal(negFact.Formula);
-                    newGoal.DeriveSubgoalTree(true);
-
-                    foreach(Derivation deriv in derivs)
-                    {
-                        if(negFact.Equals(deriv.Form) && (deriv.Origin.rule != Rules.ASS || deriv.Origin.rule != Rules.HYPO))
-                        {
-                            contraGoal.contraDeriv = deriv;
-                            break;
-                        }
-                    }
-
-                    if (facts.Contains(negFact.Formula))
+                    if (facts.Contains(subgoal.goal))
                     {
                         //Contradiction has been shown
-                        foreach(Derivation deriv in derivs)
+                        foreach (Derivation deriv in derivs)
                         {
-                            if (deriv.Form.Equals(negFact.Formula))
+                            if (deriv.Form.Equals(subgoal.goal))
                             {
-                                newGoal.deriv = deriv;
+                                subgoal.deriv = deriv;
                                 break;
                             }
                         }
-                        newGoal.Complete();
-                        contraGoal.subGoals.Add(newGoal);
-                        contraGoal.Complete();
-                        return;
+                        subgoal.Complete();
+                        subGoalsToSave.Add(subgoal);
+                        if (!findWholeTree)
+                        {
+                            break;
+                        }
                     }
                     else
                     {
-                        ElimGoalSearchForContra(newGoal, negGoal, newFacts, newImpls, newDisjs, newDerivs, depth);
-
-                        if (newGoal.Completed)
+                        if (subgoal.subGoals.Any())
                         {
-                            //The proof worked out somehow
-                            //Attach it to the contragoal and complete it
-                            //Find some way to write the necessary steps into the proof
-
-                            contraGoal.subGoals.Add(newGoal);
-                            contraGoal.Complete();
-
+                            ElimGoalSearchForContra(subgoal, negGoal, newFacts, newImpls, newDisjs, newDerivs, depth);
+                            subGoalsToSave.Add(subgoal);
+                            if (subgoal.Completed && !findWholeTree)
+                            {
+                                break;
+                            }
                         }
                     }
                 }
+
+                while (contraGoal.subGoals.Any())
+                {
+                    contraGoal.subGoals.Remove(contraGoal.subGoals.First());
+                }
+                bool completedFound = false;
+                foreach (Goal subgoal in subGoalsToSave)
+                {
+                    if (subgoal.Completed)
+                    {
+                        completedFound = true;
+                        if (!findWholeTree)
+                        {
+                            contraGoal.subGoals.Add(subgoal);
+                            return;
+                        }
+                        break;
+                    }
+                }
+                if (completedFound)
+                {
+                    foreach (Goal subgoal in subGoalsToSave)
+                    {
+                        if (subgoal.Completed)
+                        {
+                            contraGoal.subGoals.Add(subgoal);
+                        }
+                    }
+                }
+                else
+                {
+                    foreach (Goal subgoal in subGoalsToSave)
+                    {
+                        contraGoal.subGoals.Add(subgoal);
+                    }
+                }
+            }
+            else if (!contraGoal.expanded)
+            {
+                List<Goal> subGoalsToSave = new List<Goal>();
+                foreach (IFormula fact in facts)
+                {
+                    if (!negGoal.Equals(fact) && fact is Negation)
+                    {
+                        //Try to prove fact.Formula
+                        //There might be multiple negations that will lead to a contradiction if their formulas are proved
+                        //Check all and return only the shortest path
+                        bool formDerivedFromNeg = false;
+                        foreach (Derivation deriv in derivs)
+                        {
+                            if (deriv.Form.Equals(fact))
+                            {
+                                if (AncestorHasRule(deriv,Rules.NegImplToConj))
+                                {
+                                    formDerivedFromNeg = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (formDerivedFromNeg)
+                        {
+                            continue;
+                        }
+                        HashSet<IFormula> newFacts = new HashSet<IFormula>();
+                        foreach (IFormula fact2 in facts)
+                        {
+                            newFacts.Add(fact2);
+                        }
+                        List<Implication> newImpls = new List<Implication>();
+                        foreach (Implication impl in Implications)
+                        {
+                            newImpls.Add(impl);
+                        }
+                        List<Disjunction> newDisjs = new List<Disjunction>();
+                        foreach (Disjunction newDisj in Disjunctions)
+                        {
+                            newDisjs.Add(newDisj);
+                        }
+                        List<Derivation> newDerivs = new List<Derivation>();
+
+                        Negation negFact = fact as Negation;
+                        Goal newGoal = new Goal(negFact.Formula);
+                        newGoal.DeriveSubgoalTree(true);
+                        contraGoal.subGoals.Add(newGoal);
+
+                        foreach (Derivation deriv in derivs)
+                        {
+                            if (negFact.Equals(deriv.Form) && (deriv.Origin.rule != Rules.ASS || deriv.Origin.rule != Rules.HYPO))
+                            {
+                                contraGoal.contraDeriv = deriv;
+                                break;
+                            }
+                        }
+
+                        if (facts.Contains(negFact.Formula))
+                        {
+                            //Contradiction has been shown
+                            foreach (Derivation deriv in derivs)
+                            {
+                                if (deriv.Form.Equals(negFact.Formula))
+                                {
+                                    newGoal.deriv = deriv;
+                                    break;
+                                }
+                            }
+                            newGoal.Complete();
+                            subGoalsToSave.Add(newGoal);
+                            if (!findWholeTree)
+                            {
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            if (newGoal.subGoals.Any())
+                            {
+                                ElimGoalSearchForContra(newGoal, negGoal, newFacts, newImpls, newDisjs, newDerivs, depth);
+                                subGoalsToSave.Add(newGoal);
+                                if (newGoal.Completed && !findWholeTree)
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                while (contraGoal.subGoals.Any())
+                {
+                    contraGoal.subGoals.Remove(contraGoal.subGoals.First());
+                }
+                bool completedFound = false;
+                foreach (Goal subgoal in subGoalsToSave)
+                {
+                    if (subgoal.Completed)
+                    {
+                        completedFound = true;
+                        if (!findWholeTree)
+                        {
+                            contraGoal.subGoals.Add(subgoal);
+                            return;
+                        }
+                        break;
+                    }
+                }
+                if (completedFound)
+                {
+                    foreach (Goal subgoal in subGoalsToSave)
+                    {
+                        if (subgoal.Completed)
+                        {
+                            contraGoal.subGoals.Add(subgoal);
+                        }
+                    }
+                }
+                else
+                {
+                    foreach (Goal subgoal in subGoalsToSave)
+                    {
+                        contraGoal.subGoals.Add(subgoal);
+                    }
+                }
+
             }
             return;
         }
@@ -367,6 +517,32 @@ namespace Natural_Deduction_Tool
             }
             goal.subGoals.Clear();
             goal.subGoals.Add(shortest);
+        }
+
+        private static bool AncestorHasRule(Derivation deriv, Rules rule)
+        {
+            if (deriv.Origin.rule == rule)
+            {
+                return true;
+            }
+            else
+            {
+                if (deriv.Origin.parents != null)
+                {
+                    foreach (Derivation parDeriv in deriv.Origin.parents)
+                    {
+                        if (AncestorHasRule(parDeriv, rule))
+                        {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+                else
+                {
+                    return false;
+                }
+            }
         }
     }
 }

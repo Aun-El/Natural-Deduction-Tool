@@ -14,10 +14,14 @@ namespace Natural_Deduction_Tool
             {
                 throw new Exception("Tried applying NegIntro on non-conflicting proposition.");
             }
-            Tuple<Interval, Interval, Interval> negInt = FindInt(frame, negation, contra1, contra2);
-            if (negInt.Item1 == null || negInt.Item2 == null || negInt.Item3 == null)
+            if (!frame.frame[frame.Last.Item2.startLine].Item1.Equals(negation))
             {
-                throw new Exception("Tried applying NegIntro on non-existing assumption or non-existing contradictory formulas.");
+                throw new Exception("Tried applying NegIntro on non-existing assumption.");
+            }
+            Tuple<Interval, Interval> negInt = FindInt(frame, contra1, contra2);
+            if (negInt.Item1 == null || negInt.Item2 == null)
+            {
+                throw new Exception("Tried applying NegIntro on non-existing contradictory formulas.");
             }
             List<IFormula> forms = new List<IFormula> { negation, contra1, contra2 };
             Tuple<Frame, List<int>> newFrame = REI(frame, forms);
@@ -159,7 +163,7 @@ namespace Natural_Deduction_Tool
             }
             foreach (Line line in frame.frame)
             {
-                if (line.Item1.Equals(impl.Antecedent) && line.Item2.ThisOrParent(implInt))
+                if (line.Item1.Equals(impl.Antecedent) && (line.Item2.ThisOrParent(implInt) || implInt.ThisOrParent(line.Item2)))
                 {
                     List<IFormula> forms = new List<IFormula> { impl, impl.Antecedent };
                     Tuple<Frame, List<int>> newFrame = REI(frame, forms);
@@ -270,6 +274,74 @@ namespace Natural_Deduction_Tool
             Tuple<Frame, List<int>> newFrame = REI(frame, forms);
             newFrame.Item1.AddForm(output, new Annotation(newFrame.Item2, Rules.MORG, true));
             return newFrame.Item1;
+        }
+
+        public static Frame ApplyImplToDisj(Frame frame, Implication impl)
+        {
+            Disjunction disj = new Disjunction(new Negation(impl.Antecedent), impl.Consequent);
+            Interval implInt = FindInt(frame, impl);
+            if (implInt == null)
+            {
+                throw new Exception("Tried applying ImplToDisj on non-existing implication.");
+            }
+            List<IFormula> forms = new List<IFormula> { impl };
+            Tuple<Frame, List<int>> newFrame = REI(frame, forms);
+            newFrame.Item1.AddForm(disj, new Annotation(newFrame.Item2, Rules.ImplToDisj, true));
+            return newFrame.Item1;
+        }
+
+        public static Frame ApplyDisjToImpl(Frame frame, Disjunction disj)
+        {
+            Implication impl = null;
+            if(disj.Left is Negation)
+            {
+                Negation neg = disj.Left as Negation;
+                impl = new Implication(neg.Formula, disj.Right);
+            }
+            else
+            {
+                impl = new Implication(new Negation(disj.Left), disj.Right);
+            }
+            Interval disjInt = FindInt(frame, disj);
+            if (disjInt == null)
+            {
+                throw new Exception("Tried applying DisjToImpl on non-existing disjunction.");
+            }
+            List<IFormula> forms = new List<IFormula> { disj };
+            Tuple<Frame, List<int>> newFrame = REI(frame, forms);
+            newFrame.Item1.AddForm(impl, new Annotation(newFrame.Item2, Rules.DisjToImpl, true));
+            return newFrame.Item1;
+        }
+
+        public static Frame ApplyNegImplToConj(Frame frame, Negation neg)
+        {
+            if (neg.Formula is Implication)
+            {
+                Implication impl = neg.Formula as Implication;
+                Conjunction conj = null;
+                if (impl.Consequent is Negation)
+                {
+                    Negation negCons = impl.Consequent as Negation;
+                    conj = new Conjunction(impl.Antecedent, negCons.Formula);
+                }
+                else
+                {
+                    conj = new Conjunction(impl.Antecedent, new Negation(impl.Consequent));
+                }
+                Interval negInt = FindInt(frame, neg);
+                if (negInt == null)
+                {
+                    throw new Exception("Tried applying NegImplToConj on non-existing negation.");
+                }
+                List<IFormula> forms = new List<IFormula> { neg };
+                Tuple<Frame, List<int>> newFrame = REI(frame, forms);
+                newFrame.Item1.AddForm(conj, new Annotation(newFrame.Item2, Rules.NegImplToConj, true));
+                return newFrame.Item1;
+            }
+            else
+            {
+                throw new Exception("Tried applying NegImplToConj on non-neg-implication.");
+            }
         }
     }
 }
