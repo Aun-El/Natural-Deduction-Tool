@@ -8,6 +8,8 @@ namespace Natural_Deduction_Tool
 {
     class SATSolver
     {
+        //Written by Julian Veltman
+
         public static Valuation Satisfiable(IFormula formula)
         {
             if (formula == null)

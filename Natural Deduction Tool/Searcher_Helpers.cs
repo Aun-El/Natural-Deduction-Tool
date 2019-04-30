@@ -310,41 +310,7 @@ namespace Natural_Deduction_Tool
                     }
                 }
 
-                while (contraGoal.subGoals.Any())
-                {
-                    contraGoal.subGoals.Remove(contraGoal.subGoals.First());
-                }
-                bool completedFound = false;
-                foreach (Goal subgoal in subGoalsToSave)
-                {
-                    if (subgoal.Completed)
-                    {
-                        completedFound = true;
-                        if (!findWholeTree)
-                        {
-                            contraGoal.subGoals.Add(subgoal);
-                            return;
-                        }
-                        break;
-                    }
-                }
-                if (completedFound)
-                {
-                    foreach (Goal subgoal in subGoalsToSave)
-                    {
-                        if (subgoal.Completed)
-                        {
-                            contraGoal.subGoals.Add(subgoal);
-                        }
-                    }
-                }
-                else
-                {
-                    foreach (Goal subgoal in subGoalsToSave)
-                    {
-                        contraGoal.subGoals.Add(subgoal);
-                    }
-                }
+                ContraCompleteCheck(contraGoal, subGoalsToSave);
             }
             else if (!contraGoal.expanded)
             {
@@ -436,44 +402,49 @@ namespace Natural_Deduction_Tool
                     }
                 }
 
-                while (contraGoal.subGoals.Any())
+                ContraCompleteCheck(contraGoal, subGoalsToSave);
+            }
+            return;
+        }
+
+        private static void ContraCompleteCheck(ContraGoal contraGoal, List<Goal> subGoalsToSave)
+        {
+            while (contraGoal.subGoals.Any())
+            {
+                contraGoal.subGoals.Remove(contraGoal.subGoals.First());
+            }
+            bool completedFound = false;
+            foreach (Goal subgoal in subGoalsToSave)
+            {
+                if (subgoal.Completed)
                 {
-                    contraGoal.subGoals.Remove(contraGoal.subGoals.First());
+                    completedFound = true;
+                    contraGoal.Complete();
+                    if (!findWholeTree)
+                    {
+                        contraGoal.subGoals.Add(subgoal);
+                        return;
+                    }
+                    break;
                 }
-                bool completedFound = false;
+            }
+            if (completedFound)
+            {
                 foreach (Goal subgoal in subGoalsToSave)
                 {
                     if (subgoal.Completed)
                     {
-                        completedFound = true;
-                        if (!findWholeTree)
-                        {
-                            contraGoal.subGoals.Add(subgoal);
-                            return;
-                        }
-                        break;
-                    }
-                }
-                if (completedFound)
-                {
-                    foreach (Goal subgoal in subGoalsToSave)
-                    {
-                        if (subgoal.Completed)
-                        {
-                            contraGoal.subGoals.Add(subgoal);
-                        }
-                    }
-                }
-                else
-                {
-                    foreach (Goal subgoal in subGoalsToSave)
-                    {
                         contraGoal.subGoals.Add(subgoal);
                     }
                 }
-
             }
-            return;
+            else
+            {
+                foreach (Goal subgoal in subGoalsToSave)
+                {
+                    contraGoal.subGoals.Add(subgoal);
+                }
+            }
         }
 
         private static IFormula NegForm(IFormula form)

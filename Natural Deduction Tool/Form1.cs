@@ -41,6 +41,7 @@ namespace Natural_Deduction_Tool
                 conclTxt.TabStop = true;
                 proveBut.TabStop = true;
                 selfProveBut.TabStop = true;
+                selfProveBut.Text = "&Let me prove";
             }
             selfProving = false;
             if (Writer.errorTxt != null && Writer.errorTxt.Visible)
@@ -105,7 +106,7 @@ namespace Natural_Deduction_Tool
                         conclTxt.TabStop = false;
                         proveBut.TabStop = false;
                         selfProveBut.TabStop = false;
-                        Writer.Initialize(premises, conclusion, this, graph != null);
+                        Writer.Initialize(premises, conclusion, this, graph != null, graph);
                         Writer.Write();
                     }
                 }

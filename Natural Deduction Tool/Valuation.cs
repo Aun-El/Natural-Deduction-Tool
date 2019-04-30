@@ -8,6 +8,8 @@ namespace Natural_Deduction_Tool
 {
     public class Valuation
     {
+        //Written by Julian Veltman
+
         private readonly SortedDictionary<string, bool> dictionary;
 
         // Constructor.

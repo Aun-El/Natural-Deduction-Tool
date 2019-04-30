@@ -51,7 +51,7 @@ namespace Natural_Deduction_Tool
                 Goal current = goalQueue.Dequeue();
                 foreach (Derivation deriv in Derivations)
                 {
-                    if (MatchGoal(deriv.Form, current))
+                    if (MatchGoal(deriv, current))
                     {
                         if (!findWholeTree)
                         {
@@ -1191,12 +1191,16 @@ namespace Natural_Deduction_Tool
         /// </summary>
         /// <param name="frame"></param>
         /// <returns></returns>
-        private static bool MatchGoal(IFormula form, Goal goal)
+        private static bool MatchGoal(Derivation deriv, Goal goal)
         {
             if (!(goal is ImplGoal || goal is MPGoal))
             {
-                if (goal.goal.Equals(form))
+                if (goal.goal.Equals(deriv.Form))
                 {
+                    if (findWholeTree)
+                    {
+                        goal.deriv = deriv;
+                    }
                     return goal.Complete();
                 }
             }

@@ -23,6 +23,7 @@ namespace Natural_Deduction_Tool
         static Button cancelButton;
         static Button hintButton;
         static Label closeIntLbl;
+        static Goal graph;
 
         static IFormula conclusion;
         static bool noError;
@@ -40,7 +41,7 @@ namespace Natural_Deduction_Tool
             //If it is the conclusion, done. Else, go to the next line
         }
 
-        public static void Initialize(List<IFormula> premises, IFormula concl, Form1 form, bool hints)
+        public static void Initialize(List<IFormula> premises, IFormula concl, Form1 form, bool hints, Goal grph)
         {
             Frame = new Frame(premises);
             Form = form;
@@ -53,6 +54,7 @@ namespace Natural_Deduction_Tool
             errorTxt.Visible = false;
             Form.Controls.Add(errorTxt);
             errorTxt.BringToFront();
+            graph = grph;
             derivRules = new List<string> { "Assumption", "- intro", "- elim", @"/\ intro", @"/\ elim", @"\/ intro", @"\/ elim", "-> intro", "-> elim", "<-> intro", "<-> elim", "Reiterate" };
         }
 
@@ -177,6 +179,7 @@ namespace Natural_Deduction_Tool
                 Location = new Point(Form.proofTxt.Location.X + Form.proofTxt.Size.Width + 4, yPos - 25)
             };
             Form.Controls.Add(hintButton);
+            hintButton.Click += new EventHandler(GenerateHint);
             hintButton.Enabled = !noHints;
             hintButton.BringToFront();
 
@@ -1045,7 +1048,84 @@ namespace Natural_Deduction_Tool
         {
             //Need a method to count, for a direct subgoal of the main goal, how far along the user is along them.
             //Based on that, the next step can be suggested
-            //
+
+            IFormula nextStep = graph.goal;
+
+            if (graph.deriv == null)
+            {
+                int shallowest = int.MaxValue;
+                Goal shallowestGoal = null;
+                foreach (Goal subgoal in graph.subGoals)
+                {
+                    //All these subgoals are guaranteed to be completed.
+                    if (subgoal.deriv != null && subgoal.deriv.Origin.rule == Rules.HYPO)
+                    {
+                        bool cont = false;
+                        if (graph.goal is Conjunction || graph.goal is Iff)
+                        {
+                            foreach (Goal subgoal2 in graph.subGoals)
+                            {
+                                if (!(subgoal2 is MPGoal || subgoal2 is ContraGoal) && subgoal != subgoal2)
+                                {
+                                    if(subgoal2.deriv != null && subgoal.deriv.Origin.rule == Rules.HYPO)
+                                    {
+                                        //Nothing needs to be done here
+                                        shallowest = 0;
+                                        shallowestGoal = graph;
+                                        closeIntTxt.Text = CountIntsToBeClosed(Frame.frame[0].Item2, Frame).ToString();
+                                        cont = true;
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            //Nothing needs to be done here
+                            shallowest = 0;
+                            shallowestGoal = graph;
+                            closeIntTxt.Text = CountIntsToBeClosed(Frame.frame[0].Item2, Frame).ToString();
+                            cont = true;
+                        }
+                        if (cont)
+                        {
+                            continue;
+                        }
+                    }
+                    if (subgoal is MPGoal)
+                    {
+                        foreach (Goal implsubgoal in subgoal.subGoals)
+                        {
+                            if (implsubgoal.Completed)
+                            {
+                                int depth = CheckDepth(implsubgoal.subGoals[0], 1);
+                                if (depth < shallowest)
+                                {
+                                    shallowest = depth;
+                                    shallowestGoal = implsubgoal.subGoals[0];
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        int depth = CheckDepth(subgoal, 1);
+                        if (depth < shallowest)
+                        {
+                            shallowest = depth;
+                            shallowestGoal = subgoal;
+                        }
+                    }
+                }
+
+                nextStep = shallowestGoal.goal;
+            }
+            else
+            {
+                closeIntTxt.Text = CountIntsToBeClosed(Frame.frame[0].Item2, Frame).ToString();
+            }
+
+            formTxt.Text = nextStep.ToString();
+
             //If any of the special rules (such as De Morgan) are encountered and all its prequisites are met, look how far along
             //a predetermined path (matching the rule) the user is. Suggest a step based on that. Remember, a goal path ends when
             //it has a derivation.
@@ -1053,6 +1133,64 @@ namespace Natural_Deduction_Tool
             //If the user has not progressed along any paths, pick suggest the first step of the shortest one
             //
             //Premises and reiterates need not be suggested. All the rest can be.
+        }
+
+        private static int CheckDepth(Goal goal, int depthSoFar)
+        {
+            if (goal.deriv != null)
+            {
+                return depthSoFar;
+            }
+            int deepestDepth = 0;
+            foreach (Goal subGoal in goal.subGoals)
+            {
+                if (subGoal.Completed)
+                {
+                    if (subGoal is MPGoal)
+                    {
+                        foreach (Goal implsubgoal in subGoal.subGoals)
+                        {
+                            if (implsubgoal.Completed)
+                            {
+                                int newDepth = depthSoFar + 1;
+                                int depth = CheckDepth(implsubgoal.subGoals[0], newDepth);
+                                if (depth > deepestDepth)
+                                {
+                                    deepestDepth = depth;
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        int newDepth = depthSoFar + 1;
+                        int depth = CheckDepth(subGoal, newDepth);
+                        if (depth > deepestDepth)
+                        {
+                            deepestDepth = depth;
+                        }
+                    }
+                }
+            }
+
+            return deepestDepth;
+        }
+
+        private static int CountIntsToBeClosed(Interval interval, Frame frame)
+        {
+            int output = 0;
+            Interval current = frame.Last.Item2;
+            while(current != interval)
+            {
+                if(current.parent == null)
+                {
+                    throw new Exception("Could not find right hypothesis interval.");
+                }
+                output++;
+                current = current.parent;
+            }
+            return output;
+            
         }
 
         private static void CancelLastLine(object sender, EventArgs e)
